@@ -11,8 +11,8 @@ This package experimental and currently incomplete.
     See moble's github repo for a maintained version of quaternions.
 * Stéfan van der Walt's class notes from the 2013 "Dive Into NumPy" class,
       https://github.com/stefanv/teaching/tree/master/2013_scipy_austin_dive_into_numpy
-  Specifically, the steps in examples/quad_dtype show how to add a dtype for the
-  quad precision floating point type provided by gcc.
+  - The steps in examples/quad_dtype show how to add a dtype for the
+    quad precision floating point type provided by gcc.
 * NumPy "floatint" example in
       https://github.com/numpy/numpy/tree/master/doc/newdtype_example
   - Not well documented, not updated for Python 3.
