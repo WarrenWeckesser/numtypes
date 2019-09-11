@@ -1,7 +1,7 @@
 # numtypes
 Custom data types for numpy
 
-This package experimental and currently incomplete.
+This package is experimental and currently incomplete.
 
 ### Related work and links
 
