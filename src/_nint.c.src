@@ -444,14 +444,22 @@ pynint32_nb_negative(PyNInt32 *o) {
     return (PyObject *) result;
 }
 
+
 static PyObject *
 pynint32_nb_positive(PyNInt32 *o) {
     return (PyObject *) o;
 }
 
+
 static PyObject *
 pynint32_nb_absolute(PyNInt32 *o) {
     return (PyObject *) PyNInt32_FromInt32(nint32_abs(((PyNInt32 *) o)->value));
+}
+
+
+static int
+pynint32_nb_bool(PyNInt32 *o) {
+    return o->value != 0;
 }
 
 
@@ -717,7 +725,7 @@ static PyNumberMethods pynint32_as_number = {
     pynint32_nb_negative,       /* nb_negative */
     pynint32_nb_positive,       /* nb_positive */
     pynint32_nb_absolute,       /* nb_absolute */
-    0,                          /* nb_nonzero */
+    (inquiry) pynint32_nb_bool, /* nb_nonzero */
     0,                          /* nb_invert */
     0,                          /* nb_lshift */
     0,                          /* nb_rshift */
