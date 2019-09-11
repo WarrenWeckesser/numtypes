@@ -1,0 +1,754 @@
+//
+// Signed integers with the most negative value treated as NAN.
+//
+// Requires C99.
+// Python 3 only.
+//
+
+#include <stdio.h>
+#include <stdint.h>
+#include <inttypes.h>
+#include <stdbool.h>
+
+#define NPY_NO_DEPRECATED_API NPY_API_VERSION
+
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+#include <structmember.h>
+#include <math.h>
+
+
+
+// ========================================================================
+// Signed integers with the most negative value treated as NAN.
+// ========================================================================
+
+
+static inline int32_t
+nint32_neg(int32_t x) {
+    return -x;
+}
+
+
+static inline int32_t
+nint32_abs(int32_t x) {
+    if (x >= 0) {
+        return x;
+    }
+    else {
+        return -x;
+    }
+}
+
+
+static inline int32_t
+nint32_add(int32_t x, int32_t y, bool *overflow) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return INT32_MIN;
+    }
+    if ((x > 0 && y > INT32_MAX - x) || (x < 0 && y < INT32_MIN + 1 - x)) {
+        *overflow = true;
+    }
+    return x + y;
+}
+
+
+static inline int32_t
+nint32_subtract(int32_t x, int32_t y, bool *overflow) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return INT32_MIN;
+    }
+    if ((x > 0 && y < INT32_MIN + 1 + x) || (x < 0 && y > INT32_MAX + x)) {
+        *overflow = true;
+    }
+    return x - y;
+}
+
+
+static inline int32_t
+nint32_multiply(int32_t x, int32_t y, bool *overflow)
+{
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return INT32_MIN;
+    }
+    if ((x == 0) || (y == 0)) {
+        return 0;
+    }
+    if (nint32_abs(x) > (INT32_MAX / nint32_abs(y))) {
+        *overflow = true;
+    }
+    return x * y;
+}
+
+
+static inline int32_t
+nint32_divide(int32_t x, int32_t y, bool *zero_division) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return INT32_MIN;
+    }
+    if (y == 0) {
+        *zero_division = true;
+        return INT32_MIN;
+    }
+    return x / y;
+}
+
+
+static inline double
+nint32_true_divide(int32_t x, int32_t y, bool *zero_division) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return NAN;
+    }
+    if (y == 0) {
+        *zero_division = true;
+        return NAN;  // XXX or something else?
+    }
+    return (double) x / y;
+}
+
+
+static inline int32_t
+nint32_remainder(int32_t x, int32_t y, bool *zero_division) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return INT32_MIN;
+    }
+    if (y == 0) {
+        *zero_division = true;
+        return INT32_MIN;
+    }
+    // XXX Check that this agrees with the expected behavior in Python
+    // with respect to the signs of x and y.
+    return x % y;
+}
+
+
+//
+// XXX nint32_sign returns int32_t, so that it can return NAN when
+// the input is NAN.  Will this actually work?
+//
+
+static inline int32_t
+nint32_sign(int32_t x) {
+    if (x == INT32_MIN) {
+        return x;
+    }
+    return (x == 0 ? 0 : (x > 0 ? 1 : -1));
+}
+
+
+static inline int
+nint32_eq(int32_t x, int32_t y) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return 0;
+    }
+    return x == y;
+}
+
+
+static inline int
+nint32_ne(int32_t x, int32_t y) {
+    return !nint32_eq(x, y);
+}
+
+
+static inline int
+nint32_lt(int32_t x, int32_t y) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return 0;
+    }
+    return x < y;
+}
+
+
+static inline int
+nint32_gt(int32_t x, int32_t y) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return 0;
+    }
+    return x > y;
+}
+
+
+static inline int
+nint32_le(int32_t x, int32_t y) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return 0;
+    }
+    return x <= y;
+}
+
+
+static inline int
+nint32_ge(int32_t x, int32_t y) {
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return 0;
+    }
+    return x >= y;   
+}
+
+
+static inline double
+nint32_double(int32_t x) {
+    if (x == INT32_MIN) {
+        return NAN;
+    }
+    return (double) x;
+}
+
+
+static inline int
+nint32_nonzero(int32_t x) {
+    if (x == INT32_MIN) {
+        return 1;  // XXX Is NAN considered nonzero?
+    }
+    return x != 0;
+}
+
+
+// ========================================================================
+// Create a Python type.
+// ========================================================================
+
+
+typedef struct {
+    PyObject_HEAD
+    int32_t value;
+} PyNInt32;
+
+
+// Forward declaration.
+static PyTypeObject PyNInt32_Type;
+
+
+static inline int
+PyNInt32_Check(PyObject* object) {
+    return PyObject_IsInstance(object, (PyObject*) &PyNInt32_Type);
+}
+
+
+static PyObject*
+PyNInt32_FromInt32(int32_t x) {
+    PyNInt32* p = (PyNInt32*) PyNInt32_Type.tp_alloc(&PyNInt32_Type, 0);
+    if (p) {
+        p->value = x;
+    }
+    return (PyObject*) p;
+}
+
+
+static int
+PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
+{
+    static char *kwlist[] = {"value", NULL};
+    PyObject *obj;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &obj)) {
+        return -1;
+    }
+
+    if (PyUnicode_Check(obj)) {
+        // Argument is a string.
+        // FIXME: Allow 'NaN', 'NAN', etc.
+        if (PyUnicode_CompareWithASCIIString(obj, "nan") == 0) {
+            self->value = INT32_MIN;
+            return 0;
+        }
+        // Not "nan", so try to convert the string to an integer.
+        // XXX Does the following reassignment create a memory leak?
+        obj = PyLong_FromUnicodeObject(obj, 10);
+        if (obj == NULL) {
+            return -1;
+        }
+    }
+
+    if (PyLong_Check(obj)) {
+        long long value = PyLong_AsLongLong(obj);
+        if (PyErr_Occurred()) {
+            return -1;
+        }
+        if ((value <= INT32_MIN) || (value > INT32_MAX)) {
+            PyErr_SetString(PyExc_OverflowError, "int too big to convert");
+            return -1;
+        }
+        self->value = (int32_t) value;
+    }
+    else {
+        PyErr_SetString(PyExc_TypeError, "nint32() argument must be a string or an integer.");
+        return -1;
+    }
+    return 0;
+}
+
+
+// XXX Rewrite this!
+static PyObject*
+pynint32_richcompare(PyObject* a, PyObject* b, int op)
+{
+    PyNInt32 *p;
+
+    if (Py_TYPE(a) != &PyNInt32_Type) {
+        p = (PyNInt32 *) b;
+        PyObject *converted_b;
+        if (p->value == INT32_MIN) {
+            converted_b = PyFloat_FromDouble(NAN);
+        }
+        else {
+            converted_b = PyLong_FromSsize_t((Py_ssize_t) p->value);
+        }
+        if (converted_b == NULL) {
+            // Failed to convert a PyNInt32 to a Python integer or a
+            // float nan--maybe a MemoryError?
+            return NULL;
+        }
+        PyObject *cmp = Py_TYPE(a)->tp_richcompare(a, converted_b, op);
+        if (PyErr_Occurred()) {
+            if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+                PyErr_Clear();
+                Py_INCREF(Py_NotImplemented);
+                return Py_NotImplemented;
+            }
+            else {
+                return NULL;
+            }
+        }
+        return cmp;
+    }
+    else {
+        p = (PyNInt32 *) a;
+        PyObject *converted_a;
+        if (p->value == INT32_MIN) {
+            converted_a = PyFloat_FromDouble(NAN);
+        }
+        else {
+            converted_a = PyLong_FromSsize_t((Py_ssize_t) p->value);
+        }
+        if (converted_a == NULL) {
+            // Failed to convert a PyNInt32 to a Python integer or a
+            // float nan--maybe a MemoryError?
+            return NULL;
+        }
+        PyObject *cmp = Py_TYPE(converted_a)->tp_richcompare(converted_a, b, op);
+        if (PyErr_Occurred()) {
+            if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+                PyErr_Clear();
+                Py_INCREF(Py_NotImplemented);
+                return Py_NotImplemented;
+            }
+            else {
+                return NULL;
+            }
+        }
+        return cmp;
+    }
+}
+
+
+static PyObject*
+pynint32_repr(PyObject* self) {
+    int32_t value = ((PyNInt32*) self)->value;
+    if (value == INT32_MIN) {
+        return PyUnicode_FromString("nint32('nan')");
+    }
+    else {
+        return PyUnicode_FromFormat("nint32(%" PRId32 ")", value);
+    }
+}
+
+static PyObject*
+pynint32_str(PyObject* self) {
+    int32_t value = ((PyNInt32*) self)->value;
+    if (value == INT32_MIN) {
+        return PyUnicode_FromString("nan");
+    }
+    else {
+        return PyUnicode_FromFormat("%" PRId32, value);
+    }
+}
+
+
+static Py_hash_t
+pynint32_hash(PyObject* self) {
+    int32_t value = ((PyNInt32*) self)->value;
+    // FIXME: What is a reasonable hash function?
+    Py_hash_t h = 131071 * value;
+    /* Never return the special error value -1 */
+    return h == -1 ? 2 : h;
+}
+
+
+// ------------------------------------------------------------------------
+// Unary number methods
+// ------------------------------------------------------------------------
+
+
+static PyObject *
+pynint32_nb_int(PyNInt32 *o) {
+    if (o->value == INT32_MIN) {
+        PyErr_SetString(PyExc_ValueError,
+                        "cannot convert nint32('nan') to integer");
+        return NULL;
+    }
+    else {
+        PyObject *result = PyLong_FromLong((long) o->value);
+        return result;
+    }
+}
+
+// This implementation of nb_index might not be valid.  It raises
+// a TypeError if the argument is the integer nan, but shouldn't a
+// ValueError be raised for such a specific value?  The fact the
+// the documentation says that a TypeError should be raised on
+// failure suggests that the intent is that *any* instance of an
+// nint32 should be a valid index.  If that is the case, this
+// function should not be implemented.
+static PyObject *
+pynint32_nb_index(PyNInt32 *o) {
+    if (o->value == INT32_MIN) {
+        PyErr_SetString(PyExc_TypeError,
+                        "nint32('nan') cannot be interpreted as an integer");
+        return NULL;
+    }
+    else {
+        PyObject *result = PyLong_FromLong((long) o->value);
+        return result;
+    }
+}
+
+static PyObject *
+pynint32_nb_float(PyNInt32 *o) {
+    PyObject *result;
+    double dval;
+
+    dval = (o->value == INT32_MIN) ? NAN : (double) o->value;
+    result = PyFloat_FromDouble(dval);
+    return result;
+}
+
+
+static PyObject *
+pynint32_nb_negative(PyNInt32 *o) {
+    PyNInt32 *result = (PyNInt32 *) PyNInt32_Type.tp_alloc(&PyNInt32_Type, 0);
+    result->value = nint32_neg(o->value);
+    // XXX INCREF???
+    return (PyObject *) result;
+}
+
+static PyObject *
+pynint32_nb_positive(PyNInt32 *o) {
+    return (PyObject *) o;
+}
+
+static PyObject *
+pynint32_nb_absolute(PyNInt32 *o) {
+    return (PyObject *) PyNInt32_FromInt32(nint32_abs(((PyNInt32 *) o)->value));
+}
+
+
+// ------------------------------------------------------------------------
+// Binary number methods
+// ------------------------------------------------------------------------
+
+// XXX This implementation could be simplified if we handle casting similar
+// to how it is done in pynint32_nb_true_divide.  That is, for a mixed
+// expression nint32 + other, where other is not a nint32, convert the nint32
+// to either a Python integer or a floating point nan, and do the addition with
+// the converted object.  But that would mean that, for example, nint32(5) + 1
+// would return the Python integer 6, not nint32(6), and nint32('nan') + 1
+// would return a Python float nan, not nint32('nan').
+
+static PyObject *
+pynint32_nb_add(PyObject *o1, PyObject *o2)
+{
+    if ((Py_TYPE(o1) == &PyNInt32_Type) && (Py_TYPE(o2) == &PyNInt32_Type)) {
+        // Both arguments are nint32.
+        bool overflow = false;
+        int32_t value = nint32_add(((PyNInt32 *) o1)->value, ((PyNInt32 *) o2)->value, &overflow);
+        if (overflow) {
+            PyErr_SetString(PyExc_OverflowError, "result exceeds limits of nint32");
+            return NULL;
+        }
+        else {
+            return (PyObject *) PyNInt32_FromInt32(value);
+        }
+    }
+
+    if (Py_TYPE(o1) != &PyNInt32_Type) {
+        PyObject *tmp = o1;
+        o1 = o2;
+        o2 = tmp;
+    }
+
+    if (!PyNumber_Check(o2)) {
+        // The other argument is not a number.
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+    }
+
+    if (PyFloat_Check(o2)) {
+        // The other argument is a float, so cast the first argument to
+        // a C double, and return a Python float.
+        double value1 = nint32_double(((PyNInt32 *) o1)->value);
+        return (PyObject *) PyFloat_FromDouble(value1 + PyFloat_AsDouble(o2));
+    }
+
+    // Try to convert the other argument to a C long long integer.
+    long long value2 = PyLong_AsLongLong(o2);
+    if (PyErr_Occurred()) {
+        if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+            PyErr_Clear();
+            Py_INCREF(Py_NotImplemented);
+            return Py_NotImplemented;
+        }
+        else {
+            return NULL;
+        }
+    }
+
+    if ((value2 <= INT32_MIN) || (value2 > INT32_MAX)) {
+        PyErr_SetString(PyExc_OverflowError, "operand exceeds limits of nint32");
+        return NULL;        
+    }
+
+    bool overflow = false;
+    int32_t value = nint32_add(((PyNInt32 *) o1)->value, value2, &overflow);
+    if (overflow) {
+        PyErr_SetString(PyExc_OverflowError, "result exceeds limits of nint32");
+        return NULL;
+    }
+
+    return (PyObject *) PyNInt32_FromInt32(value);
+}
+
+
+static PyObject *
+pynint32_nb_multiply(PyObject *o1, PyObject *o2)
+{
+    if ((Py_TYPE(o1) == &PyNInt32_Type) && (Py_TYPE(o2) == &PyNInt32_Type)) {
+        // Both arguments are nint32.
+        bool overflow = false;
+        int32_t value = nint32_multiply(((PyNInt32 *) o1)->value, ((PyNInt32 *) o2)->value, &overflow);
+        if (overflow) {
+            PyErr_SetString(PyExc_OverflowError, "result exceeds limits of nint32");
+            return NULL;
+        }
+        else {
+            return (PyObject *) PyNInt32_FromInt32(value);
+        }
+    }
+
+    if (Py_TYPE(o1) != &PyNInt32_Type) {
+        PyObject *tmp = o1;
+        o1 = o2;
+        o2 = tmp;
+    }
+
+    if (!PyNumber_Check(o2)) {
+        // The other argument is not a number.
+        Py_INCREF(Py_NotImplemented);
+        return Py_NotImplemented;
+    }
+
+    if (PyFloat_Check(o2)) {
+        // The other argument is a float, so cast the first argument to
+        // a C double, and return a Python float.
+        double value1 = nint32_double(((PyNInt32 *) o1)->value);
+        // XXX Check for floating point overflow or underflow?
+        return (PyObject *) PyFloat_FromDouble(value1 * PyFloat_AsDouble(o2));
+    }
+
+    // Try to convert the other argument to a C long long integer.
+    long long value2 = PyLong_AsLongLong(o2);
+    if (PyErr_Occurred()) {
+        if (PyErr_ExceptionMatches(PyExc_TypeError)) {
+            PyErr_Clear();
+            Py_INCREF(Py_NotImplemented);
+            return Py_NotImplemented;
+        }
+        else {
+            return NULL;
+        }
+    }
+
+    if ((value2 <= INT32_MIN) || (value2 > INT32_MAX)) {
+        PyErr_SetString(PyExc_OverflowError, "operand exceeds limits of nint32");
+        return NULL;        
+    }
+
+    bool overflow = false;
+    int32_t value = nint32_multiply(((PyNInt32 *) o1)->value, value2, &overflow);
+    if (overflow) {
+        PyErr_SetString(PyExc_OverflowError, "result exceeds limits of nint32");
+        return NULL;
+    }
+
+    return (PyObject *) PyNInt32_FromInt32(value);
+}
+
+
+static PyObject *
+pynint32_nb_true_divide(PyObject *o1, PyObject *o2)
+{
+    if ((Py_TYPE(o1) == &PyNInt32_Type) && (Py_TYPE(o2) == &PyNInt32_Type)) {
+        // Both arguments are nint32.
+        bool zero_division = false;
+        double value = nint32_true_divide(((PyNInt32 *) o1)->value, ((PyNInt32 *) o2)->value, &zero_division);
+        if (zero_division) {
+            PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+            return NULL;
+        }
+        else {
+            return (PyObject *) PyFloat_FromDouble(value);
+        }
+    }
+
+    if (Py_TYPE(o1) != &PyNInt32_Type) {
+        // The first argument is not an nint32, so o2 must be an nint32.
+        // Convert o2 to a standard Python type (either an integer or a floating
+        // point nan), and call PyNumber_TrueDivde with the converted object.
+        int32_t value2 = ((PyNInt32 *) o2)->value;
+        PyObject *v2 = (value2 == INT32_MIN)
+                        ? PyFloat_FromDouble(NAN)
+                        : PyLong_FromLongLong((long long) value2);
+        return PyNumber_TrueDivide(o1, v2);
+    }
+    else {
+        // o1 is an nint32, o2 is not.
+        int32_t value1 = ((PyNInt32 *) o1)->value;
+        PyObject *v1 = (value1 == INT32_MIN)
+                        ? PyFloat_FromDouble(NAN)
+                        : PyLong_FromLongLong((long long) value1);
+        return PyNumber_TrueDivide(v1, o2);
+    }
+}
+
+
+static PyNumberMethods pynint32_as_number = {
+    pynint32_nb_add,            /* nb_add */
+    0,                          /* nb_subtract */
+    pynint32_nb_multiply,       /* nb_multiply */
+    0,                          /* nb_remainder */
+    0,                          /* nb_divmod */
+    0,                          /* nb_power */
+    pynint32_nb_negative,       /* nb_negative */
+    pynint32_nb_positive,       /* nb_positive */
+    pynint32_nb_absolute,       /* nb_absolute */
+    //pynint32_nb_nonzero,      /* nb_nonzero */
+    0,                          /* nb_nonzero */
+    0,                          /* nb_invert */
+    0,                          /* nb_lshift */
+    0,                          /* nb_rshift */
+    0,                          /* nb_and */
+    0,                          /* nb_xor */
+    0,                          /* nb_or */
+    pynint32_nb_int,            /* nb_int */
+    0,                          /* reserved */
+    pynint32_nb_float,          /* nb_float */
+    0,                          /* nb_inplace_add */
+    0,                          /* nb_inplace_subtract */
+    0,                          /* nb_inplace_multiply */
+    0,                          /* nb_inplace_remainder */
+    0,                          /* nb_inplace_power */
+    0,                          /* nb_inplace_lshift */
+    0,                          /* nb_inplace_rshift */
+    0,                          /* nb_inplace_and */
+    0,                          /* nb_inplace_xor */
+    0,                          /* nb_inplace_or */
+
+    0,                          /* nb_floor_divide */
+    pynint32_nb_true_divide,    /* nb_true_divide */
+    0,                          /* nb_inplace_floor_divide */
+    0,                          /* nb_inplace_true_divide */
+    pynint32_nb_index,          /* nb_index */
+};
+
+
+
+static PyTypeObject PyNInt32_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    "nint32",                                 /* tp_name */
+    sizeof(PyNInt32),                         /* tp_basicsize */
+    0,                                        /* tp_itemsize */
+    0,                                        /* tp_dealloc */
+    0,                                        /* tp_print */
+    0,                                        /* tp_getattr */
+    0,                                        /* tp_setattr */
+    0,                                        /* tp_reserved */
+    pynint32_repr,                            /* tp_repr */
+    &pynint32_as_number,                      /* tp_as_number */
+    0,                                        /* tp_as_sequence */
+    0,                                        /* tp_as_mapping */
+    pynint32_hash,                            /* tp_hash */
+    0,                                        /* tp_call */
+    pynint32_str,                             /* tp_str */
+    0,                                        /* tp_getattro */
+    0,                                        /* tp_setattro */
+    0,                                        /* tp_as_buffer */
+    Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE, /* tp_flags */
+    "Fixed width integer with NAN value",     /* tp_doc */
+    0,                                        /* tp_traverse */
+    0,                                        /* tp_clear */
+    pynint32_richcompare,                     /* tp_richcompare */
+    0,                                        /* tp_weaklistoffset */
+    0,                                        /* tp_iter */
+    0,                                        /* tp_iternext */
+    0,                                        /* tp_methods */
+    0,                                        /* tp_members */
+    0,                                        /* tp_getset */
+    0,                                        /* tp_base */
+    0,                                        /* tp_dict */
+    0,                                        /* tp_descr_get */
+    0,                                        /* tp_descr_set */
+    0,                                        /* tp_dictoffset */
+    (initproc) PyNInt32_init,                            /* tp_init */
+    0,                                        /* tp_alloc */
+    PyType_GenericNew,                        /* tp_new */
+    0,                                        /* tp_free */
+    0,                                        /* tp_is_gc */
+    0,                                        /* tp_bases */
+    0,                                        /* tp_mro */
+    0,                                        /* tp_cache */
+    0,                                        /* tp_subclasses */
+    0,                                        /* tp_weaklist */
+    0,                                        /* tp_del */
+    0,                                        /* tp_version_tag */
+};
+
+
+PyMethodDef module_methods[] = {
+    {0} // sentinel
+};
+
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "_nint",
+    NULL,
+    -1,
+    module_methods,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
+
+
+PyMODINIT_FUNC
+PyInit__nint(void) {
+    PyObject *m = NULL;
+
+    // Initialize nint32 type object
+    if (PyType_Ready(&PyNInt32_Type) < 0) {
+        return NULL;
+    }
+
+    // Create module
+    m = PyModule_Create(&moduledef);
+    if (!m) {
+        return NULL;
+    }
+
+    // Add nint32 type
+    Py_INCREF(&PyNInt32_Type);
+    PyModule_AddObject(m, "nint32", (PyObject*) &PyNInt32_Type);
+
+    return m;
+}
