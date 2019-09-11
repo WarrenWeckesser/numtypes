@@ -81,8 +81,13 @@ nint32_multiply(int32_t x, int32_t y, bool *overflow)
 }
 
 
+// integer floor division: truncate towards -inf
+// (like Python, not C)
+
 static inline int32_t
-nint32_divide(int32_t x, int32_t y, bool *zero_division) {
+nint32_floor_divide(int32_t x, int32_t y, bool *zero_division) {
+    int32_t q;
+
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return INT32_MIN;
     }
@@ -90,7 +95,16 @@ nint32_divide(int32_t x, int32_t y, bool *zero_division) {
         *zero_division = true;
         return INT32_MIN;
     }
-    return x / y;
+
+    if (y < 0) {
+        y = -y;
+        x = -x;
+    }
+    q = x / y;
+    if ((x < 0) && (y*q != x)) {
+        --q;
+    }
+    return q;
 }
 
 
@@ -518,6 +532,43 @@ pynint32_nb_add(PyObject *o1, PyObject *o2)
 
 
 static PyObject *
+pynint32_nb_subtract(PyObject *o1, PyObject *o2)
+{
+    if ((Py_TYPE(o1) == &PyNInt32_Type) && (Py_TYPE(o2) == &PyNInt32_Type)) {
+        // Both arguments are nint32.
+        bool overflow = false;
+        int32_t value = nint32_subtract(((PyNInt32 *) o1)->value, ((PyNInt32 *) o2)->value, &overflow);
+        if (overflow) {
+            PyErr_SetString(PyExc_OverflowError, "result exceeds limits of nint32");
+            return NULL;
+        }
+        else {
+            return (PyObject *) PyNInt32_FromInt32(value);
+        }
+    }
+
+    if (Py_TYPE(o1) != &PyNInt32_Type) {
+        // The first argument is not an nint32, so o2 must be an nint32.
+        // Convert o2 to a standard Python type (either an integer or a floating
+        // point nan), and call PyNumber_Subtract with the converted object.
+        int32_t value2 = ((PyNInt32 *) o2)->value;
+        PyObject *v2 = (value2 == INT32_MIN)
+                        ? PyFloat_FromDouble(NAN)
+                        : PyLong_FromLongLong((long long) value2);
+        return PyNumber_Subtract(o1, v2);
+    }
+    else {
+        // o1 is an nint32, o2 is not.
+        int32_t value1 = ((PyNInt32 *) o1)->value;
+        PyObject *v1 = (value1 == INT32_MIN)
+                        ? PyFloat_FromDouble(NAN)
+                        : PyLong_FromLongLong((long long) value1);
+        return PyNumber_Subtract(v1, o2);
+    }
+}
+
+
+static PyObject *
 pynint32_nb_multiply(PyObject *o1, PyObject *o2)
 {
     if ((Py_TYPE(o1) == &PyNInt32_Type) && (Py_TYPE(o2) == &PyNInt32_Type)) {
@@ -583,6 +634,43 @@ pynint32_nb_multiply(PyObject *o1, PyObject *o2)
 
 
 static PyObject *
+pynint32_nb_floor_divide(PyObject *o1, PyObject *o2)
+{
+    if ((Py_TYPE(o1) == &PyNInt32_Type) && (Py_TYPE(o2) == &PyNInt32_Type)) {
+        // Both arguments are nint32.
+        bool zero_division = false;
+        int32_t value = nint32_floor_divide(((PyNInt32 *) o1)->value, ((PyNInt32 *) o2)->value, &zero_division);
+        if (zero_division) {
+            PyErr_SetString(PyExc_ZeroDivisionError, "division by zero");
+            return NULL;
+        }
+        else {
+            return (PyObject *) PyNInt32_FromInt32(value);
+        }
+    }
+
+    if (Py_TYPE(o1) != &PyNInt32_Type) {
+        // The first argument is not an nint32, so o2 must be an nint32.
+        // Convert o2 to a standard Python type (either an integer or a floating
+        // point nan), and call PyNumber_Subtract with the converted object.
+        int32_t value2 = ((PyNInt32 *) o2)->value;
+        PyObject *v2 = (value2 == INT32_MIN)
+                        ? PyFloat_FromDouble(NAN)
+                        : PyLong_FromLongLong((long long) value2);
+        return PyNumber_FloorDivide(o1, v2);
+    }
+    else {
+        // o1 is an nint32, o2 is not.
+        int32_t value1 = ((PyNInt32 *) o1)->value;
+        PyObject *v1 = (value1 == INT32_MIN)
+                        ? PyFloat_FromDouble(NAN)
+                        : PyLong_FromLongLong((long long) value1);
+        return PyNumber_FloorDivide(v1, o2);
+    }
+}
+
+
+static PyObject *
 pynint32_nb_true_divide(PyObject *o1, PyObject *o2)
 {
     if ((Py_TYPE(o1) == &PyNInt32_Type) && (Py_TYPE(o2) == &PyNInt32_Type)) {
@@ -621,7 +709,7 @@ pynint32_nb_true_divide(PyObject *o1, PyObject *o2)
 
 static PyNumberMethods pynint32_as_number = {
     pynint32_nb_add,            /* nb_add */
-    0,                          /* nb_subtract */
+    pynint32_nb_subtract,       /* nb_subtract */
     pynint32_nb_multiply,       /* nb_multiply */
     0,                          /* nb_remainder */
     0,                          /* nb_divmod */
@@ -629,7 +717,6 @@ static PyNumberMethods pynint32_as_number = {
     pynint32_nb_negative,       /* nb_negative */
     pynint32_nb_positive,       /* nb_positive */
     pynint32_nb_absolute,       /* nb_absolute */
-    //pynint32_nb_nonzero,      /* nb_nonzero */
     0,                          /* nb_nonzero */
     0,                          /* nb_invert */
     0,                          /* nb_lshift */
@@ -650,8 +737,7 @@ static PyNumberMethods pynint32_as_number = {
     0,                          /* nb_inplace_and */
     0,                          /* nb_inplace_xor */
     0,                          /* nb_inplace_or */
-
-    0,                          /* nb_floor_divide */
+    pynint32_nb_floor_divide,   /* nb_floor_divide */
     pynint32_nb_true_divide,    /* nb_true_divide */
     0,                          /* nb_inplace_floor_divide */
     0,                          /* nb_inplace_true_divide */
