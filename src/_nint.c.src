@@ -291,14 +291,35 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
 }
 
 
-// XXX Rewrite this!
 static PyObject*
 pynint32_richcompare(PyObject* a, PyObject* b, int op)
 {
-    PyNInt32 *p;
+    if (Py_TYPE(a) == &PyNInt32_Type && Py_TYPE(b) == &PyNInt32_Type) {
+        int result;
+        if (((PyNInt32 *) a)->value == INT32_MIN || ((PyNInt32 *) b)->value == INT32_MIN) {
+            // One of the values is nint32('nan').
+            if (op == Py_NE) {
+                Py_INCREF(Py_True);
+                return Py_True;
+            }
+            else {
+                Py_INCREF(Py_False);
+                return Py_False;
+            }
+        }
+        switch (op) {
+            case Py_EQ: result = ((PyNInt32 *) a)->value == ((PyNInt32 *) b)->value; break;
+            case Py_LT: result = ((PyNInt32 *) a)->value <  ((PyNInt32 *) b)->value; break;
+            case Py_LE: result = ((PyNInt32 *) a)->value <= ((PyNInt32 *) b)->value; break;
+            case Py_NE: result = ((PyNInt32 *) a)->value != ((PyNInt32 *) b)->value; break;
+            case Py_GT: result = ((PyNInt32 *) a)->value >  ((PyNInt32 *) b)->value; break;
+            case Py_GE: result = ((PyNInt32 *) a)->value >= ((PyNInt32 *) b)->value; break;
+        };
+        return PyBool_FromLong(result);
+    }
 
     if (Py_TYPE(a) != &PyNInt32_Type) {
-        p = (PyNInt32 *) b;
+        PyNInt32 *p = (PyNInt32 *) b;
         PyObject *converted_b;
         if (p->value == INT32_MIN) {
             converted_b = PyFloat_FromDouble(NAN);
@@ -311,21 +332,10 @@ pynint32_richcompare(PyObject* a, PyObject* b, int op)
             // float nan--maybe a MemoryError?
             return NULL;
         }
-        PyObject *cmp = Py_TYPE(a)->tp_richcompare(a, converted_b, op);
-        if (PyErr_Occurred()) {
-            if (PyErr_ExceptionMatches(PyExc_TypeError)) {
-                PyErr_Clear();
-                Py_INCREF(Py_NotImplemented);
-                return Py_NotImplemented;
-            }
-            else {
-                return NULL;
-            }
-        }
-        return cmp;
+        return PyObject_RichCompare(a, converted_b, op);
     }
     else {
-        p = (PyNInt32 *) a;
+        PyNInt32 *p = (PyNInt32 *) a;
         PyObject *converted_a;
         if (p->value == INT32_MIN) {
             converted_a = PyFloat_FromDouble(NAN);
@@ -338,18 +348,7 @@ pynint32_richcompare(PyObject* a, PyObject* b, int op)
             // float nan--maybe a MemoryError?
             return NULL;
         }
-        PyObject *cmp = Py_TYPE(converted_a)->tp_richcompare(converted_a, b, op);
-        if (PyErr_Occurred()) {
-            if (PyErr_ExceptionMatches(PyExc_TypeError)) {
-                PyErr_Clear();
-                Py_INCREF(Py_NotImplemented);
-                return Py_NotImplemented;
-            }
-            else {
-                return NULL;
-            }
-        }
-        return cmp;
+        return PyObject_RichCompare(converted_a, b, op);
     }
 }
 
