@@ -722,40 +722,40 @@ pynint32_nb_true_divide(PyObject *o1, PyObject *o2)
 
 
 static PyNumberMethods pynint32_as_number = {
-    pynint32_nb_add,            // nb_add
-    pynint32_nb_subtract,       // nb_subtract
-    pynint32_nb_multiply,       // nb_multiply
-    0,                          // nb_remainder
-    0,                          // nb_divmod
-    0,                          // nb_power
-    pynint32_nb_negative,       // nb_negative
-    pynint32_nb_positive,       // nb_positive
-    pynint32_nb_absolute,       // nb_absolute
-    (inquiry) pynint32_nb_bool, // nb_nonzero
-    0,                          // nb_invert
-    0,                          // nb_lshift
-    0,                          // nb_rshift
-    0,                          // nb_and
-    0,                          // nb_xor
-    0,                          // nb_or
-    pynint32_nb_int,            // nb_int
-    0,                          // reserved
-    pynint32_nb_float,          // nb_float
-    0,                          // nb_inplace_add
-    0,                          // nb_inplace_subtract
-    0,                          // nb_inplace_multiply
-    0,                          // nb_inplace_remainder
-    0,                          // nb_inplace_power
-    0,                          // nb_inplace_lshift
-    0,                          // nb_inplace_rshift
-    0,                          // nb_inplace_and
-    0,                          // nb_inplace_xor
-    0,                          // nb_inplace_or
-    pynint32_nb_floor_divide,   // nb_floor_divide
-    pynint32_nb_true_divide,    // nb_true_divide
-    0,                          // nb_inplace_floor_divide
-    0,                          // nb_inplace_true_divide
-    pynint32_nb_index,          // nb_index
+    pynint32_nb_add,                    // nb_add
+    pynint32_nb_subtract,               // nb_subtract
+    pynint32_nb_multiply,               // nb_multiply
+    0,                                  // nb_remainder
+    0,                                  // nb_divmod
+    0,                                  // nb_power
+    (unaryfunc) pynint32_nb_negative,   // nb_negative
+    (unaryfunc) pynint32_nb_positive,   // nb_positive
+    (unaryfunc) pynint32_nb_absolute,   // nb_absolute
+    (inquiry) pynint32_nb_bool,         // nb_nonzero
+    0,                                  // nb_invert
+    0,                                  // nb_lshift
+    0,                                  // nb_rshift
+    0,                                  // nb_and
+    0,                                  // nb_xor
+    0,                                  // nb_or
+    (unaryfunc) pynint32_nb_int,        // nb_int
+    0,                                  // reserved
+    (unaryfunc) pynint32_nb_float,      // nb_float
+    0,                                  // nb_inplace_add
+    0,                                  // nb_inplace_subtract
+    0,                                  // nb_inplace_multiply
+    0,                                  // nb_inplace_remainder
+    0,                                  // nb_inplace_power
+    0,                                  // nb_inplace_lshift
+    0,                                  // nb_inplace_rshift
+    0,                                  // nb_inplace_and
+    0,                                  // nb_inplace_xor
+    0,                                  // nb_inplace_or
+    pynint32_nb_floor_divide,           // nb_floor_divide
+    pynint32_nb_true_divide,            // nb_true_divide
+    0,                                  // nb_inplace_floor_divide
+    0,                                  // nb_inplace_true_divide
+    (unaryfunc) pynint32_nb_index,      // nb_index
 };
 
 
