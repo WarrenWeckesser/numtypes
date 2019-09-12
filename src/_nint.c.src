@@ -282,12 +282,19 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
             return -1;
         }
         self->value = (int32_t) value;
+        return 0;
     }
-    else {
-        PyErr_SetString(PyExc_TypeError, "nint32() argument must be a string or an integer.");
-        return -1;
+    if (PyFloat_Check(obj)) {
+        double value = PyFloat_AsDouble(obj);
+        if (isnan(value)) {
+            self->value = INT32_MIN;
+            return 0;
+        }
     }
-    return 0;
+    PyErr_SetString(PyExc_TypeError,
+                    "nint32() argument must be an integer, "
+                    "a floating point nan, or the string 'nan'.");
+    return -1;
 }
 
 
