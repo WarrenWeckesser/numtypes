@@ -1085,35 +1085,6 @@ PyInit__nint(void) {
     REGISTER_BINARY_UFUNC(add)
     REGISTER_BINARY_UFUNC(subtract)
     REGISTER_BINARY_UFUNC(multiply)
-    /*
-    // Register the 'add' ufunc.
-
-    PyUFuncObject* ufunc_add = (PyUFuncObject*) PyObject_GetAttrString(numpy, "add");
-    if (!ufunc_add) {
-        return NULL;
-    }
-    check = PyUFunc_RegisterLoopForType(ufunc_add, npy_nint32,
-                                        nint32_ufunc_add,
-                                        binary_ufunc_types, 0);
-    Py_DECREF(ufunc_add);
-    if (check < 0) {
-        return NULL;
-    }
-
-    // Register the 'subtract' ufunc.
-
-    PyUFuncObject* ufunc_subtract = (PyUFuncObject*) PyObject_GetAttrString(numpy, "subtract");
-    if (!ufunc_subtract) {
-        return NULL;
-    }
-    check = PyUFunc_RegisterLoopForType(ufunc_subtract, npy_nint32,
-                                        nint32_ufunc_subtract,
-                                        binary_ufunc_types, 0);
-    Py_DECREF(ufunc_subtract);
-    if (check < 0) {
-        return NULL;
-    }
-    */
 
     // Create module
     m = PyModule_Create(&moduledef);
