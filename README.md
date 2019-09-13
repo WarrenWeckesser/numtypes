@@ -11,28 +11,28 @@ Examples
 The `nint32` dtype is still a work in progress.  Here are some examples
 of what is implemented so far::
 
-	>>> import numpy as np
-	>>> from numtypes import nint32
+    >>> import numpy as np
+    >>> from numtypes import nint32
 
-	>>> a = np.array([10, -99, 0, 1234], dtype=nint32)
-	>>> a
-	array([10, -99, 0, 1234], dtype=nint32)
-	>>> a.sum(initial=nint32(0))
-	1145
-	>>> b = np.array([9, np.nan, 100, -1], dtype=nint32)
-	>>> b
-	array([9, nan, 100, -1], dtype=nint32)
-	>>> b.sum(initial=nint32(0))
-	nan
-	>>> a + b
-	array([19, nan, 100, 1233], dtype=nint32)
-	>>> a * b
-	array([90, nan, 0, -1234], dtype=nint32)
+    >>> a = np.array([10, -99, 0, 1234], dtype=nint32)
+    >>> a
+    array([10, -99, 0, 1234], dtype=nint32)
+    >>> a.sum(initial=nint32(0))
+    1145
+    >>> b = np.array([9, np.nan, 100, -1], dtype=nint32)
+    >>> b
+    array([9, nan, 100, -1], dtype=nint32)
+    >>> b.sum(initial=nint32(0))
+    nan
+    >>> a + b
+    array([19, nan, 100, 1233], dtype=nint32)
+    >>> a * b
+    array([90, nan, 0, -1234], dtype=nint32)
 
-	>>> a.astype(np.int32)
-	array([  10,  -99,    0, 1234], dtype=int32)
-	>>> b.astype(np.int32)
-	array([          9, -2147483648,         100,          -1], dtype=int32)
+    >>> a.astype(np.int32)
+    array([  10,  -99,    0, 1234], dtype=int32)
+    >>> b.astype(np.int32)
+    array([          9, -2147483648,         100,          -1], dtype=int32)
     >>> b.astype(np.float32)
     array([  9.,  nan, 100.,  -1.], dtype=float32)
 
