@@ -9,14 +9,15 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdbool.h>
+#include <math.h>
 
 #define NPY_NO_DEPRECATED_API NPY_API_VERSION
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <structmember.h>
-#include <math.h>
-
+#include <numpy/arrayobject.h>
+#include <numpy/ufuncobject.h>
 
 
 // ========================================================================
@@ -200,11 +201,18 @@ nint32_ge(int32_t x, int32_t y) {
     return x >= y;   
 }
 
+static inline float
+nint32_float(int32_t x) {
+    if (x == INT32_MIN) {
+        return (float) NAN;
+    }
+    return (float) x;
+}
 
 static inline double
 nint32_double(int32_t x) {
     if (x == INT32_MIN) {
-        return NAN;
+        return (double) NAN;
     }
     return (double) x;
 }
@@ -737,12 +745,12 @@ static PyNumberMethods pynint32_as_number = {
 };
 
 
-
 static PyTypeObject PyNInt32_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nint32",
     .tp_basicsize   = sizeof(PyNInt32),
-    .tp_repr        = pynint32_repr,
+    //.tp_repr        = pynint32_repr,
+    .tp_repr        = pynint32_str,
     .tp_as_number   = &pynint32_as_number,
     .tp_hash        = pynint32_hash,
     .tp_str         = pynint32_str,
@@ -767,14 +775,345 @@ static struct PyModuleDef moduledef = {
 };
 
 
+// ========================================================================
+// NumPy support.
+// ========================================================================
+
+// ------------------------------------------------------------------------
+// Functions to be put in the PyArray_ArrFuncs structure.
+// ------------------------------------------------------------------------
+
+static PyObject*
+npynint32_f_getitem(void* data, void* arr) {
+    PyObject *p = (PyObject *) PyNInt32_FromInt32(*((int32_t *) data));
+    return p;
+}
+
+
+static int
+npynint32_f_setitem(PyObject* item, void* data, void* arr) {
+    if (PyNInt32_Check(item)) {
+        *((int32_t *)data) = ((PyNInt32 *) item)->value;
+        return 0;
+    }
+    else {
+        // item is some other Python object.
+        // If it is a floating point nan, set the value to INT32_MIN.
+        // Otherwise, cast to int and check the bounds.
+        if (PyFloat_Check(item)) {
+            double value = PyFloat_AsDouble(item);
+            if (isnan(value)) {
+                *((int32_t *)data) = INT32_MIN;
+                return 0;
+            }
+        }
+        // XXX This is similar to code in PyNInt32_init.  D.R.Y!
+        long long value = PyLong_AsLongLong(item);
+        if (PyErr_Occurred()) {
+            return -1;
+        }
+        if ((value <= INT32_MIN) || (value > INT32_MAX)) {
+            PyErr_SetString(PyExc_OverflowError, "int too big to convert");
+            return -1;
+        }
+        *(int32_t *)data = (int32_t) value;
+        return 0;
+    }
+}
+
+
+// XXX Not needed?
+static inline void
+byteswap(int32_t *x) {
+    char *p = (char *) x;
+    char *q = p + sizeof(*x);
+    while (p < q) {
+        char tmp = *p;
+        --q;
+        *p = *q;
+        *q = tmp;
+        ++p;
+    }
+}
+
+
+static inline void
+copyswap(int32_t *dst, int32_t *src) {
+    char *from = (char *) src;
+    char *to = (char *) (dst + 1);
+    for (size_t i = 0; i < sizeof(int32_t); ++i) {
+        --to;
+        *to = *from;
+        ++from;
+    }
+}
+
+
+static void
+npynint32_f_copyswap(void* dst, void* src, int swap, void* arr) {
+    if (!src) {
+        return;
+    }
+    if (swap) {
+        copyswap((int32_t *) dst, (int32_t *) src);
+    }
+    else {
+        *((int32_t *) dst) = *((int32_t *) src);
+    }
+}
+
+
+static void
+npynint32_f_copyswapn(void* dst_, npy_intp dstride,
+                     void* src_, npy_intp sstride,
+                     npy_intp n, int swap, void* arr) {
+    char *dst = (char *) dst_;
+    char *src = (char * )src_;
+    if (!src) {
+        return;
+    }
+    if (swap) {
+        for (npy_intp i = 0; i < n; i++) {
+            copyswap((int32_t *) dst, (int32_t *) src);
+            dst += dstride;
+            src += sstride;
+        }
+    }
+    else if (dstride == sizeof(int32_t) && sstride == sizeof(int32_t)) {
+        // Each array is contiguous, so we can use a single call to memcpy.
+        memcpy(dst, src, n*sizeof(int32_t));
+    }
+    else {
+        for (npy_intp i = 0; i < n; i++) {
+            *((int32_t *) dst) = *((int32_t *) src);
+            dst += dstride;
+            src += sstride;
+        }
+    }
+}
+
+
+static npy_bool
+npynint32_f_nonzero(void* data, void* arr) {
+    return nint32_nonzero(*((int32_t *) data)) ? NPY_TRUE : NPY_FALSE;
+}
+
+// ------------------------------------------------------------------------
+// Functions for casting from nint32 to NumPy builtin data types.
+// These will be assigned to the appropriate slots in
+// the array npynint32_arrfuncs.cast[].
+// ------------------------------------------------------------------------
+
+
+static void
+npy_cast_nint32_to_float(void* from, void* to, npy_intp n,
+                         void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((float *) to)[i] = nint32_float(((int32_t *) from)[i]);
+    }
+}
+
+
+static void
+npy_cast_nint32_to_double(void* from, void* to, npy_intp n,
+                          void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((double *) to)[i] = nint32_double(((int32_t *) from)[i]);
+    }
+}
+
+
+static void
+npy_cast_nint32_to_int32(void* from, void* to, npy_intp n,
+                         void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((int32_t *) to)[i] = ((int32_t *) from)[i];
+    }
+}
+
+
+static void
+npy_cast_nint32_to_int64(void* from, void* to, npy_intp n,
+                         void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((int64_t *) to)[i] = (int64_t) (((int32_t *) from)[i]);
+    }
+}
+
+
+static PyArray_ArrFuncs npynint32_arrfuncs = {
+    .getitem    = npynint32_f_getitem,
+    .setitem    = npynint32_f_setitem,
+    .copyswapn  = npynint32_f_copyswapn,
+    .copyswap   = npynint32_f_copyswap,
+    .nonzero    = npynint32_f_nonzero,
+    .cast       = {[NPY_INT32]  = npy_cast_nint32_to_int32,
+                   [NPY_INT64]  = npy_cast_nint32_to_int64,
+                   [NPY_FLOAT]  = npy_cast_nint32_to_float,
+                   [NPY_DOUBLE] = npy_cast_nint32_to_double},
+};
+
+
+PyArray_Descr npynint32_descr = {
+    PyObject_HEAD_INIT(0)
+    .typeobj    = &PyNInt32_Type,
+    .kind       = 'x',
+    .type       = 'x',
+    .byteorder  = '=',
+    /*
+     * For now, we need NPY_NEEDS_PYAPI in order to make numpy detect our
+     * exceptions.  This isn't technically necessary,
+     * since we're careful about thread safety, and hopefully future
+     * versions of numpy will recognize that.
+     * XXX Is this still needed for the int32_t type?  Do we even
+     * need NPY_USE_GETITEM and NPY_USE_SETITEM?
+     */
+    .flags      = NPY_NEEDS_PYAPI | NPY_USE_GETITEM | NPY_USE_SETITEM,
+    .elsize     = sizeof(int32_t),
+    .alignment  = offsetof(struct {char c; int32_t value;}, value),
+    .f          = &npynint32_arrfuncs,
+};
+
+
+// ------------------------------------------------------------------------
+// ufunc inner loop functions.
+// ------------------------------------------------------------------------
+
+
+#define BINARY_UFUNC(name) \
+    void nint32_ufunc_##name(char** args, npy_intp* dimensions, \
+                             npy_intp* steps, void* data) \
+    { \
+        char *i0 = args[0]; \
+        char *i1 = args[1]; \
+        char  *o = args[2]; \
+ \
+        npy_intp n = *dimensions; \
+ \
+        npy_intp is0 = steps[0]; \
+        npy_intp is1 = steps[1]; \
+        npy_intp os = steps[2]; \
+ \
+        /* XXX How to handle overflow? */ \
+        bool overflow = false; \
+ \
+        for (npy_intp k = 0; k < n; k++, i0 += is0, i1 += is1, o += os) { \
+            int32_t x = *(int32_t *)i0; \
+            int32_t y = *(int32_t *)i1; \
+            *(int32_t *)o = nint32_##name(x, y, &overflow); \
+        } \
+    }
+
+BINARY_UFUNC(add)
+BINARY_UFUNC(subtract)
+BINARY_UFUNC(multiply)
+
+
+// ========================================================================
+// Python extension module definition.
+// ========================================================================
+
 PyMODINIT_FUNC
 PyInit__nint(void) {
-    PyObject *m = NULL;
+    PyObject* m = NULL;
+    PyObject* numpy_str;
+    PyObject* numpy;
+    int npy_nint32;
+    int check;
+
+    import_array();
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
+
+    import_umath();
+    if (PyErr_Occurred()) {
+         return NULL;
+    }
+
+    numpy_str = PyUnicode_FromString("numpy");
+    if (!numpy_str) {
+        return NULL;
+    }
+
+    numpy = PyImport_Import(numpy_str);
+    Py_DECREF(numpy_str);
+    if (!numpy) {
+        return NULL;
+    }
+
+    // Can't set this until we import numpy
+    PyNInt32_Type.tp_base = &PyGenericArrType_Type;
 
     // Initialize nint32 type object
     if (PyType_Ready(&PyNInt32_Type) < 0) {
         return NULL;
     }
+
+    Py_TYPE(&npynint32_descr) = &PyArrayDescr_Type;
+    npy_nint32 = PyArray_RegisterDataType(&npynint32_descr);
+    if (npy_nint32 < 0) {
+        return NULL;
+    }
+
+    // Support nint32.dtype
+    if (PyDict_SetItemString(PyNInt32_Type.tp_dict, "dtype",
+                             (PyObject*) &npynint32_descr) < 0) {
+        return NULL;
+    }
+
+
+    int binary_ufunc_types[] = {npy_nint32, npy_nint32, npy_nint32};
+
+    #define REGISTER_BINARY_UFUNC(name) \
+        PyUFuncObject* ufunc_##name = (PyUFuncObject*) PyObject_GetAttrString(numpy, #name); \
+        if (!ufunc_##name) { \
+            return NULL; \
+        } \
+        check = PyUFunc_RegisterLoopForType(ufunc_##name, npy_nint32, \
+                                            nint32_ufunc_##name, \
+                                            binary_ufunc_types, 0); \
+        Py_DECREF(ufunc_##name); \
+        if (check < 0) { \
+            return NULL; \
+        }
+
+    REGISTER_BINARY_UFUNC(add)
+    REGISTER_BINARY_UFUNC(subtract)
+    REGISTER_BINARY_UFUNC(multiply)
+    /*
+    // Register the 'add' ufunc.
+
+    PyUFuncObject* ufunc_add = (PyUFuncObject*) PyObject_GetAttrString(numpy, "add");
+    if (!ufunc_add) {
+        return NULL;
+    }
+    check = PyUFunc_RegisterLoopForType(ufunc_add, npy_nint32,
+                                        nint32_ufunc_add,
+                                        binary_ufunc_types, 0);
+    Py_DECREF(ufunc_add);
+    if (check < 0) {
+        return NULL;
+    }
+
+    // Register the 'subtract' ufunc.
+
+    PyUFuncObject* ufunc_subtract = (PyUFuncObject*) PyObject_GetAttrString(numpy, "subtract");
+    if (!ufunc_subtract) {
+        return NULL;
+    }
+    check = PyUFunc_RegisterLoopForType(ufunc_subtract, npy_nint32,
+                                        nint32_ufunc_subtract,
+                                        binary_ufunc_types, 0);
+    Py_DECREF(ufunc_subtract);
+    if (check < 0) {
+        return NULL;
+    }
+    */
 
     // Create module
     m = PyModule_Create(&moduledef);
