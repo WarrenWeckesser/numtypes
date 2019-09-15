@@ -1,9 +1,12 @@
 numtypes
 ========
 
-Custom data types for numpy
+Custom data types for numpy.
 
-This package is experimental and currently incomplete.
+Currently the only new data type defined here is `numtypes.nint32`, a 32 bit
+signed integer type that uses the most negative value as `nan`.
+
+This package is an experimental work in progress.
 
 Examples
 --------
