@@ -202,7 +202,7 @@ nint32_ge(int32_t x, int32_t y) {
 }
 
 static inline float
-nint32_float(int32_t x) {
+nint32_as_float(int32_t x) {
     if (x == INT32_MIN) {
         return (float) NAN;
     }
@@ -210,13 +210,22 @@ nint32_float(int32_t x) {
 }
 
 static inline double
-nint32_double(int32_t x) {
+nint32_as_double(int32_t x) {
     if (x == INT32_MIN) {
         return (double) NAN;
     }
     return (double) x;
 }
 
+static inline int32_t
+nint32_as_int32_t(int32_t x) {
+    return x;
+}
+
+static inline int64_t
+nint32_as_int64_t(int32_t x) {
+    return (int64_t) x;
+}
 
 static inline int
 nint32_nonzero(int32_t x) {
@@ -520,7 +529,7 @@ pynint32_nb_add(PyObject *o1, PyObject *o2)
     if (PyFloat_Check(o2)) {
         // The other argument is a float, so cast the first argument to
         // a C double, and return a Python float.
-        double value1 = nint32_double(((PyNInt32 *) o1)->value);
+        double value1 = nint32_as_double(((PyNInt32 *) o1)->value);
         return (PyObject *) PyFloat_FromDouble(value1 + PyFloat_AsDouble(o2));
     }
 
@@ -621,7 +630,7 @@ pynint32_nb_multiply(PyObject *o1, PyObject *o2)
     if (PyFloat_Check(o2)) {
         // The other argument is a float, so cast the first argument to
         // a C double, and return a Python float.
-        double value1 = nint32_double(((PyNInt32 *) o1)->value);
+        double value1 = nint32_as_double(((PyNInt32 *) o1)->value);
         // XXX Check for floating point overflow or underflow?
         return (PyObject *) PyFloat_FromDouble(value1 * PyFloat_AsDouble(o2));
     }
@@ -729,6 +738,8 @@ pynint32_nb_true_divide(PyObject *o1, PyObject *o2)
 }
 
 
+// Python number protocol methods for nint32.
+
 static PyNumberMethods pynint32_as_number = {
     .nb_add          = pynint32_nb_add,
     .nb_subtract     = pynint32_nb_subtract,
@@ -744,6 +755,8 @@ static PyNumberMethods pynint32_as_number = {
     .nb_index        = (unaryfunc) pynint32_nb_index,
 };
 
+
+// Python type object for nint32.
 
 static PyTypeObject PyNInt32_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -904,45 +917,20 @@ npynint32_f_nonzero(void* data, void* arr) {
 // the array npynint32_arrfuncs.cast[].
 // ------------------------------------------------------------------------
 
-
-static void
-npy_cast_nint32_to_float(void* from, void* to, npy_intp n,
-                         void* fromarr, void* toarr)
-{
-    for (npy_intp i = 0; i < n; ++i) {
-        ((float *) to)[i] = nint32_float(((int32_t *) from)[i]);
+#define CAST_FUNC_TO_BASIC_TYPE(type) \
+    static void \
+    npy_cast_nint32_to_##type(void* from, void* to, npy_intp n, \
+                              void* fromarr, void* toarr) \
+    { \
+        for (npy_intp i = 0; i < n; ++i) { \
+            ((type *) to)[i] = nint32_as_##type(((int32_t *) from)[i]); \
+        } \
     }
-}
 
-
-static void
-npy_cast_nint32_to_double(void* from, void* to, npy_intp n,
-                          void* fromarr, void* toarr)
-{
-    for (npy_intp i = 0; i < n; ++i) {
-        ((double *) to)[i] = nint32_double(((int32_t *) from)[i]);
-    }
-}
-
-
-static void
-npy_cast_nint32_to_int32(void* from, void* to, npy_intp n,
-                         void* fromarr, void* toarr)
-{
-    for (npy_intp i = 0; i < n; ++i) {
-        ((int32_t *) to)[i] = ((int32_t *) from)[i];
-    }
-}
-
-
-static void
-npy_cast_nint32_to_int64(void* from, void* to, npy_intp n,
-                         void* fromarr, void* toarr)
-{
-    for (npy_intp i = 0; i < n; ++i) {
-        ((int64_t *) to)[i] = (int64_t) (((int32_t *) from)[i]);
-    }
-}
+CAST_FUNC_TO_BASIC_TYPE(float)
+CAST_FUNC_TO_BASIC_TYPE(double)
+CAST_FUNC_TO_BASIC_TYPE(int32_t)
+CAST_FUNC_TO_BASIC_TYPE(int64_t)
 
 
 static PyArray_ArrFuncs npynint32_arrfuncs = {
@@ -951,8 +939,8 @@ static PyArray_ArrFuncs npynint32_arrfuncs = {
     .copyswapn  = npynint32_f_copyswapn,
     .copyswap   = npynint32_f_copyswap,
     .nonzero    = npynint32_f_nonzero,
-    .cast       = {[NPY_INT32]  = npy_cast_nint32_to_int32,
-                   [NPY_INT64]  = npy_cast_nint32_to_int64,
+    .cast       = {[NPY_INT32]  = npy_cast_nint32_to_int32_t,
+                   [NPY_INT64]  = npy_cast_nint32_to_int64_t,
                    [NPY_FLOAT]  = npy_cast_nint32_to_float,
                    [NPY_DOUBLE] = npy_cast_nint32_to_double},
 };
@@ -978,6 +966,75 @@ PyArray_Descr npynint32_descr = {
     .f          = &npynint32_arrfuncs,
 };
 
+
+// ------------------------------------------------------------------------
+// Functions for casting from NumPy builtin types to nint32.
+// These will be registered with calls to PyArray_RegisterCanCast.
+// ------------------------------------------------------------------------
+
+// Casting from int64 to nint32 is probably not a great idea.
+// The values will be cast module 2**32, so some valid int64 values
+// might get converted to nint32('nan').  It might be better to
+// not allow the conversion, so the user is forced to convert their
+// data to a safe format first.
+// For now, though, I'll implement it.
+static void
+npy_cast_int64_to_nint32(void* from, void* to, npy_intp n,
+                         void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((int32_t *) to)[i] = ((int64_t *) from)[i];
+    }
+}
+
+// This function is exactly the same as npy_cast_nint32_to_int32.
+// For the moment, I'm working formally.  This can probably be removed later.
+static void
+npy_cast_int32_to_nint32(void* from, void* to, npy_intp n,
+                         void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((int32_t *) to)[i] = ((int32_t *) from)[i];
+    }
+}
+
+static void
+npy_cast_int16_to_nint32(void* from, void* to, npy_intp n,
+                         void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((int32_t *) to)[i] = ((int16_t *) from)[i];
+    }
+}
+
+static void
+npy_cast_int8_to_nint32(void* from, void* to, npy_intp n,
+                        void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        ((int32_t *) to)[i] = ((int8_t *) from)[i];
+    }
+}
+
+static void
+npy_cast_float_to_nint32(void* from, void* to, npy_intp n,
+                         void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        float from_value = ((float *) from)[i];
+        ((int32_t *) to)[i] = isnan(from_value) ? INT32_MIN : (int32_t) from_value;
+    }
+}
+
+static void
+npy_cast_double_to_nint32(void* from, void* to, npy_intp n,
+                          void* fromarr, void* toarr)
+{
+    for (npy_intp i = 0; i < n; ++i) {
+        double from_value = ((double *) from)[i];
+        ((int32_t *) to)[i] = isnan(from_value) ? INT32_MIN : (int32_t) from_value;
+    }
+}
 
 // ------------------------------------------------------------------------
 // ufunc inner loop functions.
@@ -1011,6 +1068,7 @@ PyArray_Descr npynint32_descr = {
 BINARY_UFUNC(add)
 BINARY_UFUNC(subtract)
 BINARY_UFUNC(multiply)
+BINARY_UFUNC(floor_divide)
 
 
 // ========================================================================
@@ -1067,6 +1125,54 @@ PyInit__nint(void) {
     }
 
 
+    // This allows, for example,
+    //     np.array([1, 2, 3], dtype=np.int32).astype(nint32)
+    // to work.
+    if (PyArray_RegisterCastFunc(PyArray_DescrFromType(NPY_INT32),
+                                 npy_nint32,
+                                 npy_cast_int32_to_nint32) < 0) {
+        return NULL;
+    }
+    // This allows, for example,
+    //     np.array([1, 2], dtype=nint32) + np.array([3, 4], dtype=np.int32)
+    // to work--the np.int32 array is coerced to nint32 and the result has
+    // dtype nint32.
+    if (PyArray_RegisterCanCast(PyArray_DescrFromType(NPY_INT32),
+                                npy_nint32,
+                                NPY_NOSCALAR) < 0) {
+        return NULL;
+    }
+
+    if (PyArray_RegisterCastFunc(PyArray_DescrFromType(NPY_INT64),
+                                 npy_nint32,
+                                 npy_cast_int64_to_nint32) < 0) {
+        return NULL;
+    }
+    if (PyArray_RegisterCanCast(PyArray_DescrFromType(NPY_INT64),
+                                npy_nint32,
+                                NPY_NOSCALAR) < 0) {
+        return NULL;
+    }
+
+    if (PyArray_RegisterCastFunc(PyArray_DescrFromType(NPY_INT16),
+                                 npy_nint32,
+                                 npy_cast_int16_to_nint32) < 0) {
+        return NULL;
+    }
+    if (PyArray_RegisterCanCast(PyArray_DescrFromType(NPY_INT16),
+                                npy_nint32,
+                                NPY_NOSCALAR) < 0) {
+        return NULL;
+    }
+
+
+    if (PyArray_RegisterCanCast(&npynint32_descr,
+                                NPY_DOUBLE,
+                                NPY_NOSCALAR) < 0) {
+        return NULL;
+    }
+
+
     int binary_ufunc_types[] = {npy_nint32, npy_nint32, npy_nint32};
 
     #define REGISTER_BINARY_UFUNC(name) \
@@ -1085,6 +1191,8 @@ PyInit__nint(void) {
     REGISTER_BINARY_UFUNC(add)
     REGISTER_BINARY_UFUNC(subtract)
     REGISTER_BINARY_UFUNC(multiply)
+    REGISTER_BINARY_UFUNC(floor_divide)
+
 
     // Create module
     m = PyModule_Create(&moduledef);
