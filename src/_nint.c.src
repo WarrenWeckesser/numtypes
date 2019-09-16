@@ -973,7 +973,7 @@ PyArray_Descr npynint32_descr = {
 // ------------------------------------------------------------------------
 
 // Casting from int64 to nint32 is probably not a great idea.
-// The values will be cast module 2**32, so some valid int64 values
+// The values will be cast modulo 2**32, so some valid int64 values
 // might get converted to nint32('nan').  It might be better to
 // not allow the conversion, so the user is forced to convert their
 // data to a safe format first.

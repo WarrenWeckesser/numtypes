@@ -28,18 +28,28 @@ of what is implemented so far::
     array([9, nan, 100, -1], dtype=nint32)
     >>> b.sum(initial=nint32(0))
     nan
+    >>> b // nint32(5)                     # Preserves dtype
+    array([1, nan, 20, -1], dtype=nint32)
+    >>> b / 5                              # True divide, casts to float64.
+    array([ 1.8,  nan, 20. , -0.2])
 
     >>> a + b
     array([19, nan, 100, 1233], dtype=nint32)
     >>> a * b
     array([90, nan, 0, -1234], dtype=nint32)
+    >>> a / b
+    array([ 1.11111111e+00,             nan,  0.00000000e+00, -1.23400000e+03])
 
     >>> a.astype(np.int32)
     array([  10,  -99,    0, 1234], dtype=int32)
-    >>> b.astype(np.int32)
+    >>> b.astype(np.int32)  # Note that nint32('nan') casts to -2147483648.
     array([          9, -2147483648,         100,          -1], dtype=int32)
     >>> b.astype(np.float32)
     array([  9.,  nan, 100.,  -1.], dtype=float32)
+
+    >>> np.isnan(b)
+    array([False,  True, False, False])
+
 
 Related work and links
 ----------------------
