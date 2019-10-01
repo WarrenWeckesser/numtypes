@@ -1102,28 +1102,34 @@ npy_cast_double_to_nint32(void* from, void* to, npy_intp n,
 // ------------------------------------------------------------------------
 
 
-#define BINARY_UFUNC(name) \
-    void nint32_ufunc_##name(char** args, npy_intp* dimensions, \
-                             npy_intp* steps, void* data) \
-    { \
-        char *i0 = args[0]; \
-        char *i1 = args[1]; \
-        char  *o = args[2]; \
- \
-        npy_intp n = *dimensions; \
- \
-        npy_intp is0 = steps[0]; \
-        npy_intp is1 = steps[1]; \
-        npy_intp os = steps[2]; \
- \
-        /* XXX How to handle overflow? */ \
-        bool overflow = false; \
- \
-        for (npy_intp k = 0; k < n; k++, i0 += is0, i1 += is1, o += os) { \
-            int32_t x = *(int32_t *)i0; \
-            int32_t y = *(int32_t *)i1; \
-            *(int32_t *)o = nint32_##name(x, y, &overflow); \
-        } \
+#define BINARY_UFUNC(name)                                                  \
+    void nint32_ufunc_##name(char** args, npy_intp* dimensions,             \
+                             npy_intp* steps, void* data)                   \
+    {                                                                       \
+        char *i0 = args[0];                                                 \
+        char *i1 = args[1];                                                 \
+        char  *o = args[2];                                                 \
+                                                                            \
+        npy_intp n = *dimensions;                                           \
+                                                                            \
+        npy_intp is0 = steps[0];                                            \
+        npy_intp is1 = steps[1];                                            \
+        npy_intp os = steps[2];                                             \
+                                                                            \
+        bool overflow = false;                                              \
+                                                                            \
+        for (npy_intp k = 0; k < n; k++, i0 += is0, i1 += is1, o += os) {   \
+            int32_t x = *(int32_t *)i0;                                     \
+            int32_t y = *(int32_t *)i1;                                     \
+            *(int32_t *)o = nint32_##name(x, y, &overflow);                 \
+        }                                                                   \
+        if (overflow) {                                                     \
+            NPY_ALLOW_C_API_DEF                                             \
+            NPY_ALLOW_C_API                                                 \
+            PyErr_SetString(PyExc_RuntimeError,                             \
+                            "nint32 overflow during " #name);               \
+            NPY_DISABLE_C_API                                               \
+        }                                                                   \
     }
 
 BINARY_UFUNC(add)
