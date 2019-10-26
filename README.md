@@ -103,9 +103,6 @@ Related work and links
       https://github.com/stefanv/teaching/tree/master/2013_scipy_austin_dive_into_numpy
   - The steps in examples/quad_dtype show how to add a dtype for the
     quad precision floating point type provided by gcc.
-* NumPy "floatint" example in
-      https://github.com/numpy/numpy/tree/master/doc/newdtype_example
-  - Not well documented, not updated for Python 3.
 * NumPy:
       https://github.com/numpy/numpy/blob/master/numpy/core/src/umath/_rational_tests.c.src
   - This implements a rational dtype as a unit test.
