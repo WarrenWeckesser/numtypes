@@ -121,30 +121,30 @@ The `conj()` method returns the complex conjugate.  In polar coordinates,
 this simply changes the sign of the angle.
 
     >>> pz1.conj()
-    polarcomplex128((4, -0.52359878))
+    polarcomplex128((2, -1.0471976))
 
 The Python object implements the usual arithmetic operations.
 (This also demonstrates passing a Python complex number to the type.)
 
     >>> pz2 = polarcomplex128(5 + 12j)
     >>> pz2
+    polarcomplex128((13, 1.1760052))
     >>> -pz2
     polarcomplex128((-13, 1.1760052))
     >>> abs(pz2)
     13.0
     >>> pz2 / pz1
-    polarcomplex128((3.25, 0.65240643))
-    >>> complex(pz1 + pz2)
+    polarcomplex128((6.5, 0.12880766))
     >>> pz1 + pz2
-    polarcomplex128((16.359738, 1.0270169))
+    polarcomplex128((14.985634, 1.158861))
 
-Check that converting the values to Python complex numbers
-gives the same result, whether we add before or after the conversion.
+Check that converting the values to Python complex numbers gives the same
+result, whether we add before or after the conversion.
 
     >>> complex(pz1 + pz2)
-    (8.464101615137757+13.999999999999998j)
+    (5.999999999999999+13.732050807568877j)
     >>> complex(pz1) + complex(pz2)
-    (8.464101615137755+14j)
+    (6.000000000000001+13.732050807568877j)
 
 The NumPy type `complex64` and `complex128` can be converted to the polar
 types.
