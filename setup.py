@@ -13,6 +13,9 @@ def configuration(parent_package='', top_path=None):
     config.add_extension('numtypes._complex_int',
                          extra_compile_args=['-std=c99'],
                          sources=[join('src', '_complex_int.c.src')])
+    config.add_extension('numtypes._polarcomplex',
+                         extra_compile_args=['-std=c99'],
+                         sources=[join('src', '_polarcomplex.c.src')])
     return config
 
 

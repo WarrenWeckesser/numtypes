@@ -9,6 +9,9 @@ The following data types are defined in this library:
   value as `nan`.
 * `complex_int8`, `complex_int16`, `complex_int32` and `complex_int64` are
   complex numbers with integer real and imaginary parts.
+* `polarcomplex64` and `polarcomplex128` are complex numbers represented
+  in polar coordinates.  (The Python objects and NumPy data types have been
+  created, but the NumPy ufuncs are not implemented yet.)
 
 This package is an experimental work in progress.  Use at your own risk!
 
@@ -90,6 +93,67 @@ data types do not work correctly!
     array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
     >>> z8.imag
     array([(0+0j), (0+0j), (0+0j)], dtype='complex_int8')
+
+Some examples of `polarcomplex64` and `polarcomplex128`:
+
+    >>> from numtypes import polarcomplex64, polarcomplex128
+
+A tuple given to the type holds the magnitude and angle of the complex number.
+The attributes `r` and `theta` return these values.
+
+    >>> pz1 = polarcomplex128((2, np.pi/3))
+    >>> pz1
+    polarcomplex128((2, 1.0471976))
+    >>> pz1.r
+    2.0
+    >>> pz1.theta
+    1.0471975511965976
+
+The `real` and `imag` attributes compute the real and imaginary parts of
+the complex number.
+
+    >>> pz1.real
+    1.0000000000000002
+    >>> pz1.imag
+    1.7320508075688772
+
+The `conj()` method returns the complex conjugate.  In polar coordinates,
+this simply changes the sign of the angle.
+
+    >>> pz1.conj()
+    polarcomplex128((4, -0.52359878))
+
+The Python object implements the usual arithmetic operations.
+(This also demonstrates passing a Python complex number to the type.)
+
+    >>> pz2 = polarcomplex128(5 + 12j)
+    >>> pz2
+    >>> -pz2
+    polarcomplex128((-13, 1.1760052))
+    >>> abs(pz2)
+    13.0
+    >>> pz2 / pz1
+    polarcomplex128((3.25, 0.65240643))
+    >>> complex(pz1 + pz2)
+    >>> pz1 + pz2
+    polarcomplex128((16.359738, 1.0270169))
+
+Check that converting the values to Python complex numbers
+gives the same result, whether we add before or after the conversion.
+
+    >>> complex(pz1 + pz2)
+    (8.464101615137757+13.999999999999998j)
+    >>> complex(pz1) + complex(pz2)
+    (8.464101615137755+14j)
+
+The NumPy type `complex64` and `complex128` can be converted to the polar
+types.
+
+    >>> a = np.array([1 + 2j, 3+4j, -5j])
+    >>> a.astype(polarcomplex64)
+    array([polarcomplex64((2.236068, 1.1071488)),
+           polarcomplex64((5, 0.92729521)), polarcomplex64((5, -1.5707964))],
+          dtype=polarcomplex64)
 
 
 Related work and links
