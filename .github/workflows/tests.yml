@@ -27,4 +27,5 @@ jobs:
         pip install .
     - name: Test with pytest
       run: |
+        cd /
         python -m pytest `python -c "import numtypes, os; print(os.path.dirname(numtypes.__file__))"`
