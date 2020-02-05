@@ -1,7 +1,7 @@
 numtypes
 ========
 
-Custom data types for numpy.
+Custom data types for NumPy.
 
 The following data types are defined in this library:
 
