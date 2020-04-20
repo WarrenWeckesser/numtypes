@@ -27,7 +27,7 @@ jobs:
         pip install .
     - name: Test with pytest
       run: |
-        cd ..
+        cd ../..
         pwd
         export LOCATION=`python -c "import numtypes, os; print(os.path.dirname(numtypes.__file__))"`
         echo $LOCATION
