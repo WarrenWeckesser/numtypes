@@ -24,7 +24,7 @@ jobs:
         pip install numpy==${{ matrix.numpy-version }}
     - name: Install numtypes
       run: |
-        pip install .
+        python setup.py install
     - name: Test with pytest
       run: |
         cd ../..
