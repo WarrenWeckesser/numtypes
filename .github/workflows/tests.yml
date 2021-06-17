@@ -53,7 +53,7 @@ jobs:
         pip install --pre --upgrade --timeout=60 -i https://pypi.anaconda.org/scipy-wheels-nightly/simple numpy
     - name: Install numtypes
       run: |
-        pip install .
+        python setup.py install
     - name: Test with pytest
       run: |
         cd ../..
