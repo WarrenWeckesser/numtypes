@@ -506,7 +506,7 @@ NPComplex@Typ@_f_copyswapn(void* dst_, npy_intp dstride,
 static npy_bool
 NPComplex@Typ@_f_nonzero(void* data, void* arr) {
     complex_@typ@ *z = (complex_@typ@ *) data;
-    return (z->real != 0 && z->imag != 0) ? NPY_TRUE : NPY_FALSE;
+    return (z->real == 0 && z->imag == 0) ? NPY_FALSE : NPY_TRUE;
 }
 
 // ------------------------------------------------------------------------
