@@ -346,6 +346,23 @@ PyPolarComplex@nbits@_nb_bool(PyPolarComplex@nbits@ *o) {
     return (o->value.r != 0);
 }
 
+static PyObject *
+PyPolarComplex@nbits@_float(PyPolarComplex@nbits@ *o) {
+    PyErr_SetString(PyExc_TypeError,
+        "can't convert polarcomplex@nbits@ to float.  Use the function abs(), "
+        "or access real-valued components with one of the .r, .theta, .real "
+        "or .imag attributes.");
+    return NULL;
+}
+
+static PyObject *
+PyPolarComplex@nbits@_long(PyPolarComplex@nbits@ *o) {
+    PyErr_SetString(PyExc_TypeError,
+        "can't convert polarcomplex@nbits@ to int");
+    return NULL;
+}
+
+
 //
 // Python number protocol: unary methods
 //
@@ -636,6 +653,8 @@ static PyNumberMethods PyPolarComplex@nbits@_as_number = {
     .nb_positive     = (unaryfunc) PyPolarComplex@nbits@_nb_positive,
     .nb_absolute     = (unaryfunc) PyPolarComplex@nbits@_nb_absolute,
     .nb_bool         = (inquiry) PyPolarComplex@nbits@_nb_bool,
+    .nb_float        = (unaryfunc) PyPolarComplex@nbits@_float,
+    .nb_int          = (unaryfunc) PyPolarComplex@nbits@_long,
     .nb_add          = PyPolarComplex_nb_add,
     .nb_subtract     = PyPolarComplex_nb_subtract,
     .nb_multiply     = PyPolarComplex_nb_multiply,

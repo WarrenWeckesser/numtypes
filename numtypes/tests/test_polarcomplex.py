@@ -69,3 +69,12 @@ def test_true_division(typ, atol, rtol):
     assert math.isclose(w.r, 13/5, rel_tol=rtol)
     assert math.isclose(w.theta, math.atan2(12, 5) - math.atan2(4, 3),
                         rel_tol=rtol)
+
+
+@pytest.mark.parametrize('func', [float, int])
+@pytest.mark.parametrize('typ', [polarcomplex64, polarcomplex128])
+def test_float_and_int_raise_typerror(func, typ):
+    z = typ(1+2j)
+    match = f"can't convert {typ.__name__} to {func.__name__}"
+    with pytest.raises(TypeError, match=match):
+        func(z)
