@@ -19,6 +19,21 @@ def test_comparison(typ, atol, rtol):
     assert math.isclose(z.theta, math.atan2(4, 3), rel_tol=rtol)
 
 
+@pytest.mark.parametrize('typ, rtol',
+                         [(polarcomplex64, 1e-7),
+                          (polarcomplex128, 1e-15)])
+def test_addition(typ, rtol):
+    z1 = 1 + 2j
+    z2 = 3 - 4j
+    p1 = typ(z1)
+    p2 = typ(z2)
+    zsum = z1 + z2
+    psum = p1 + p2
+    pzsum = typ(zsum)
+    assert math.isclose(psum.r, pzsum.r, rel_tol=rtol)
+    assert math.isclose(psum.theta, pzsum.theta, rel_tol=rtol)
+
+
 @pytest.mark.parametrize('typ, atol, rtol',
                          [(polarcomplex64, 1e-7, 1e-7),
                           (polarcomplex128, 1e-15, 1e-15)])

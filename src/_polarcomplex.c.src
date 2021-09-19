@@ -18,7 +18,7 @@
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // The polar complex C structure.
-// (It's just a struct of with two fields, r and theta.)
+// (It's just a struct with two fields, r and theta.)
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 /**begin repeat
@@ -55,8 +55,7 @@ typedef struct _polarcomplex@nbits@ {
 static @ctype@ complex
 polarcomplex@nbits@_to_complex(const polarcomplex@nbits@ z)
 {
-    @ctype@ complex w = {z.r * @cosfunc@(z.theta),
-                         z.r * @sinfunc@(z.theta)};
+    @ctype@ complex w = z.r*@cosfunc@(z.theta) + z.r*@sinfunc@(z.theta)*I;
     return w;
 }
 
