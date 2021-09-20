@@ -605,8 +605,8 @@ cast_npy_@fromityp@_to_complex_@typ@(void* from, void* to, npy_intp n,
 // ufunc inner loop functions.
 // ------------------------------------------------------------------------
 
-void NPComplex@Typ@_ufunc_abs(char** args, npy_intp* dimensions,
-                              npy_intp* steps, void* data)
+void NPComplex@Typ@_ufunc_abs(char** args, const npy_intp* dimensions,
+                              const npy_intp* steps, void* data)
 {
     char *i0 = args[0];
     char  *o = args[1];
@@ -622,8 +622,8 @@ void NPComplex@Typ@_ufunc_abs(char** args, npy_intp* dimensions,
     }
 }
 
-void NPComplex@Typ@_ufunc_conj(char** args, npy_intp* dimensions,
-                               npy_intp* steps, void* data)
+void NPComplex@Typ@_ufunc_conj(char** args, const npy_intp* dimensions,
+                               const npy_intp* steps, void* data)
 {
     char *i0 = args[0];
     char  *o = args[1];
@@ -639,9 +639,9 @@ void NPComplex@Typ@_ufunc_conj(char** args, npy_intp* dimensions,
     }
 }
 
-#define BINARY_UFUNC_@TYP@(name)                                            \
-    void NPComplex@Typ@_ufunc_##name(char** args, npy_intp* dimensions,     \
-                                     npy_intp* steps, void* data)           \
+#define BINARY_UFUNC_@TYP@(name)                                             \
+    void NPComplex@Typ@_ufunc_##name(char** args, const npy_intp* dimensions,\
+                                     const npy_intp* steps, void* data)     \
     {                                                                       \
         char *i0 = args[0];                                                 \
         char *i1 = args[1];                                                 \

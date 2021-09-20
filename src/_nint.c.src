@@ -1103,8 +1103,8 @@ npy_cast_double_to_nint32(void* from, void* to, npy_intp n,
 
 
 #define BINARY_UFUNC(name)                                                  \
-    void nint32_ufunc_##name(char** args, npy_intp* dimensions,             \
-                             npy_intp* steps, void* data)                   \
+    void nint32_ufunc_##name(char** args, const npy_intp* dimensions,       \
+                             const npy_intp* steps, void* data)             \
     {                                                                       \
         char *i0 = args[0];                                                 \
         char *i1 = args[1];                                                 \
