@@ -1,5 +1,6 @@
 # Just a few tests at the moment.
 
+import pytest
 import math
 from numtypes import nint32
 
@@ -34,11 +35,14 @@ def test_true_division():
     assert z == 2.0
 
 
-def test_nan():
-    z = nint32('nan')
+@pytest.mark.parametrize('nanstr', ['nan', '\t+NAN ', '-nAn'])
+def test_nan_str(nanstr):
+    z = nint32(nanstr)
     assert math.isnan(float(z))
     assert math.isnan(z + 1.5)
 
+
+def test_nan():
     z = nint32(math.nan)
     assert math.isnan(float(z))
     assert z != z
@@ -55,3 +59,15 @@ def test_other():
     a = nint32(2)
     w = z / a
     assert w == z/2
+
+
+@pytest.mark.parametrize('value', [2**31, -2**31, 2**65])
+def test_init_arg_too_big(value):
+    with pytest.raises(OverflowError, match='int too big to convert'):
+        nint32(value)
+
+
+@pytest.mark.parameterize('arg', [2.5, None, 'abc'])
+def test_init_bad_arg(arg):
+    with pytest.raises(TypeError, match='argument must be'):
+        nint32(arg)

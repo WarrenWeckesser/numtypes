@@ -268,10 +268,21 @@ PyNInt32_FromInt32(int32_t x) {
 
 
 static int
+init_argument_error()
+{
+    PyErr_SetString(PyExc_TypeError,
+                    "nint32() argument must be an integer, "
+                    "a floating point nan, or the string 'nan'.");
+    return -1;
+}
+
+
+static int
 PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"value", NULL};
     PyObject *obj;
+    bool obj_owned = false;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &obj)) {
         return -1;
@@ -279,21 +290,35 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
 
     if (PyUnicode_Check(obj)) {
         // Argument is a string.
-        // FIXME: Allow 'NaN', 'NAN', etc.
-        if (PyUnicode_CompareWithASCIIString(obj, "nan") == 0) {
-            self->value = INT32_MIN;
-            return 0;
+        // Try to convert it to a Python integer.
+        PyObject *tmp = PyLong_FromUnicodeObject(obj, 10);
+        if (tmp != NULL) {
+            obj = tmp;  // obj is now a Python integer.
+            obj_owned = true;
         }
-        // Not "nan", so try to convert the string to an integer.
-        // XXX Does the following reassignment create a memory leak?
-        obj = PyLong_FromUnicodeObject(obj, 10);
-        if (obj == NULL) {
-            return -1;
+        else {
+            // Conversion to an integer failed, now try to convert to a float.
+            // The only float that is allowed is nan, but we check for this
+            // below.  (Converting to float instead of doing a string
+            // comparision with "nan" ensures that the conversion accepts the
+            // same variations of the string "nan" as the builtin float() does,
+            //  e.g "NaN", "nAn", "-NAN", "  +naN\t", etc.)
+            PyErr_Clear();
+            tmp = PyFloat_FromString(obj);
+            if (tmp == NULL) {
+                PyErr_Clear();
+                return init_argument_error();
+            }
+            obj = tmp;  // obj is now a Python float.
+            obj_owned = true;
         }
     }
 
     if (PyLong_Check(obj)) {
         long long value = PyLong_AsLongLong(obj);
+        if (obj_owned) {
+            Py_DECREF(obj);
+        }
         if (PyErr_Occurred()) {
             return -1;
         }
@@ -306,15 +331,16 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
     }
     if (PyFloat_Check(obj)) {
         double value = PyFloat_AsDouble(obj);
+        if (obj_owned) {
+            Py_DECREF(obj);
+        }
         if (isnan(value)) {
             self->value = INT32_MIN;
             return 0;
         }
     }
-    PyErr_SetString(PyExc_TypeError,
-                    "nint32() argument must be an integer, "
-                    "a floating point nan, or the string 'nan'.");
-    return -1;
+
+    return init_argument_error();
 }
 
 
