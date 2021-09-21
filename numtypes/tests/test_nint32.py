@@ -67,7 +67,7 @@ def test_init_arg_too_big(value):
         nint32(value)
 
 
-@pytest.mark.parameterize('arg', [2.5, None, 'abc'])
+@pytest.mark.parametrize('arg', [2.5, None, 'abc'])
 def test_init_bad_arg(arg):
     with pytest.raises(TypeError, match='argument must be'):
         nint32(arg)
