@@ -282,19 +282,19 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
 {
     static char *kwlist[] = {"value", NULL};
     PyObject *obj;
-    bool obj_owned = false;
 
     if (!PyArg_ParseTupleAndKeywords(args, kwds, "O", kwlist, &obj)) {
         return -1;
     }
+    Py_INCREF(obj);
 
     if (PyUnicode_Check(obj)) {
         // Argument is a string.
         // Try to convert it to a Python integer.
         PyObject *tmp = PyLong_FromUnicodeObject(obj, 10);
         if (tmp != NULL) {
+            Py_DECREF(obj);
             obj = tmp;  // obj is now a Python integer.
-            obj_owned = true;
         }
         else {
             // Conversion to an integer failed, now try to convert to a float.
@@ -305,20 +305,18 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
             //  e.g "NaN", "nAn", "-NAN", "  +naN\t", etc.)
             PyErr_Clear();
             tmp = PyFloat_FromString(obj);
+            Py_DECREF(obj);
             if (tmp == NULL) {
                 PyErr_Clear();
                 return init_argument_error();
             }
             obj = tmp;  // obj is now a Python float.
-            obj_owned = true;
         }
     }
 
     if (PyLong_Check(obj)) {
         long long value = PyLong_AsLongLong(obj);
-        if (obj_owned) {
-            Py_DECREF(obj);
-        }
+        Py_DECREF(obj);
         if (PyErr_Occurred()) {
             return -1;
         }
@@ -329,17 +327,18 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
         self->value = (int32_t) value;
         return 0;
     }
+
     if (PyFloat_Check(obj)) {
         double value = PyFloat_AsDouble(obj);
-        if (obj_owned) {
-            Py_DECREF(obj);
+        Py_DECREF(obj);
+        if (!isnan(value)) {
+            return init_argument_error();
         }
-        if (isnan(value)) {
-            self->value = INT32_MIN;
-            return 0;
-        }
+        self->value = INT32_MIN;
+        return 0;
     }
 
+    Py_DECREF(obj);
     return init_argument_error();
 }
 
