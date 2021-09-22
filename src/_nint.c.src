@@ -272,7 +272,8 @@ init_argument_error()
 {
     PyErr_SetString(PyExc_TypeError,
                     "nint32() argument must be an integer, "
-                    "a floating point nan, or the string 'nan'.");
+                    "a floating point nan, a string, "
+                    "or another nint32 instance.");
     return -1;
 }
 
@@ -287,6 +288,12 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
         return -1;
     }
     Py_INCREF(obj);
+
+    if (PyNInt32_Check(obj)) {
+        self->value = ((PyNInt32 *) obj)->value;
+        Py_DECREF(obj);
+        return 0;
+    }
 
     if (PyUnicode_Check(obj)) {
         // Argument is a string.
@@ -312,6 +319,16 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
             }
             obj = tmp;  // obj is now a Python float.
         }
+    }
+    else if (PyIndex_Check(obj)) {
+        PyObject *tmp = PyNumber_Index(obj);
+        Py_DECREF(obj);
+        if (tmp == NULL) {
+            // This can happen with a numpy array, e.g.
+            // >>> nint32(np.array([123]))
+            return -1;
+        }
+        obj = tmp;
     }
 
     if (PyLong_Check(obj)) {

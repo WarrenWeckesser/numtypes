@@ -1,7 +1,7 @@
-# Just a few tests at the moment.
 
 import pytest
 import math
+import numpy as np
 from numtypes import nint32
 
 
@@ -9,6 +9,18 @@ def test_basic():
     x = nint32(3)
     assert x == 3
     assert int(x) == 3
+
+
+@pytest.mark.parametrize('typ', [np.int8, np.uint8, np.int16, np.uint16,
+                                 np.int32, np.uint32, np.int64, np.uint64])
+def test_init_np_types(typ):
+    x = nint32(typ(123))
+    assert x == 123
+
+
+def test_init_str_type():
+    x = nint32("123")
+    assert x == 123
 
 
 def test_comparison():
