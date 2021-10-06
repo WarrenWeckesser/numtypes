@@ -38,15 +38,6 @@ typedef struct _complex_@typ@ {
 } complex_@typ@;
 
 
-static inline void
-c@typ@_print(const complex_@typ@ z, char *name)
-{
-    printf("%s  = %" PRId64 " + %" PRId64 "*i\n", name, (int64_t) z.real, (int64_t) z.imag);    
-}
-
-#define PRINT_c@typ@(var) c@typ@_print(var, #var)
-
-
 static inline complex_@typ@
 c@typ@_add(const complex_@typ@ z1, const complex_@typ@ z2)
 {
@@ -104,6 +95,8 @@ c@typ@_abs_double(const complex_@typ@ z)
     return cabs(dz);
 }
 
+/***** UNUSED
+
 static inline float
 c@typ@_abs2_float(const complex_@typ@ z)
 {
@@ -115,7 +108,6 @@ c@typ@_abs2_double(const complex_@typ@ z)
 {
     return pow((double) z.real, 2) + pow((double) z.imag, 2);
 }
-
 
 static inline float complex
 c@typ@_true_divide_float(const complex_@typ@ z1, const complex_@typ@ z2)
@@ -134,6 +126,8 @@ c@typ@_true_divide_double(const complex_@typ@ z1, const complex_@typ@ z2)
     double complex w2 = (double) z2.real + I * (double) z2.imag;
     return w1 / w2;
 }
+
+*****/
 
 // ========================================================================
 // Create a Python type.
