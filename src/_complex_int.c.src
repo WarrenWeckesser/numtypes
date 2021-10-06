@@ -826,7 +826,7 @@ PyInit__complex_int(void) {
     int ufunc_@typ@_abs_types[] = {npy_complex_@typ@, NPY_DOUBLE};
 
     check = PyUFunc_RegisterLoopForType(ufunc_abs, npy_complex_@typ@,
-                                        NPComplex@Typ@_ufunc_abs,
+                                        (PyUFuncGenericFunction) NPComplex@Typ@_ufunc_abs,
                                         ufunc_@typ@_abs_types, 0);
     if (check < 0) {
         goto cleanup;
@@ -835,7 +835,7 @@ PyInit__complex_int(void) {
     int ufunc_@typ@_conj_types[] = {npy_complex_@typ@, npy_complex_@typ@};
 
     check = PyUFunc_RegisterLoopForType(ufunc_conj, npy_complex_@typ@,
-                                        NPComplex@Typ@_ufunc_conj,
+                                        (PyUFuncGenericFunction) NPComplex@Typ@_ufunc_conj,
                                         ufunc_@typ@_conj_types, 0);
     if (check < 0) {
         goto cleanup;
