@@ -18,7 +18,10 @@ This package is an experimental work in progress.  Use at your own risk!
 Examples
 --------
 
-Some examples of `nint32`::
+Integers with `nan`, `nint32`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some examples of `nint32`:
 
     >>> import numpy as np
     >>> from numtypes import nint32
@@ -56,7 +59,11 @@ Some examples of `nint32`::
     >>> np.isnan(b)
     array([False,  True, False, False])
 
-The complex integer data types::
+
+Complex integers
+~~~~~~~~~~~~~~~~
+
+Some examples of using the the complex integer data types:
 
     >>> from numtypes import complex_int8, complex_int32
 
@@ -93,6 +100,10 @@ data types do not work correctly!
     array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
     >>> z8.imag
     array([(0+0j), (0+0j), (0+0j)], dtype='complex_int8')
+
+
+Polar complex types
+~~~~~~~~~~~~~~~~~~~
 
 Some examples of `polarcomplex64` and `polarcomplex128`:
 
