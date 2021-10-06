@@ -18,8 +18,7 @@ This package is an experimental work in progress.  Use at your own risk!
 Examples
 --------
 
-Integers with `nan`, `nint32`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+### Integers with `nan`, `nint32`
 
 Some examples of `nint32`:
 
@@ -60,8 +59,7 @@ Some examples of `nint32`:
     array([False,  True, False, False])
 
 
-Complex integers
-~~~~~~~~~~~~~~~~
+### Complex integers
 
 Some examples of using the the complex integer data types:
 
@@ -102,8 +100,7 @@ data types do not work correctly!
     array([(0+0j), (0+0j), (0+0j)], dtype='complex_int8')
 
 
-Polar complex types
-~~~~~~~~~~~~~~~~~~~
+### Polar complex types
 
 Some examples of `polarcomplex64` and `polarcomplex128`:
 
