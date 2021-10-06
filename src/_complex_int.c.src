@@ -74,11 +74,20 @@ c@typ@_equal(const complex_@typ@ z1, const complex_@typ@ z2)
     return (z1.real == z2.real) && (z1.imag == z2.imag);
 }
 
+/***** UNUSED
 static inline float
 c@typ@_abs_float(const complex_@typ@ z)
 {
     float complex dz = (float) z.real + I * (float) z.imag;
     return cabsf(dz);
+}
+*****/
+
+static inline double
+c@typ@_abs_double(const complex_@typ@ z)
+{
+    double complex dz = (double) z.real + I * (double) z.imag;
+    return cabs(dz);
 }
 
 static inline complex_@typ@
@@ -86,13 +95,6 @@ c@typ@_conj(const complex_@typ@ z)
 {
     complex_@typ@ zc = {.real = z.real, .imag = -z.imag};
     return zc;
-}
-
-static inline double
-c@typ@_abs_double(const complex_@typ@ z)
-{
-    double complex dz = (double) z.real + I * (double) z.imag;
-    return cabs(dz);
 }
 
 /***** UNUSED
