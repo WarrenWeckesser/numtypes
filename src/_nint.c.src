@@ -123,7 +123,7 @@ nint32_true_divide(int32_t x, int32_t y, bool *zero_division) {
     return (double) x / y;
 }
 
-
+/***** UNUSED
 static inline int32_t
 nint32_remainder(int32_t x, int32_t y, bool *zero_division) {
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
@@ -137,13 +137,14 @@ nint32_remainder(int32_t x, int32_t y, bool *zero_division) {
     // with respect to the signs of x and y.
     return x % y;
 }
-
+*****/
 
 //
 // XXX nint32_sign returns int32_t, so that it can return NAN when
 // the input is NAN.  Will this actually work?
 //
 
+/***** UNUSED
 static inline int32_t
 nint32_sign(int32_t x) {
     if (x == INT32_MIN) {
@@ -202,6 +203,8 @@ nint32_ge(int32_t x, int32_t y) {
     }
     return x >= y;   
 }
+*****/
+
 
 static inline float
 nint32_as_float(int32_t x) {
@@ -916,6 +919,7 @@ npynint32_f_setitem(PyObject* item, void* data, void* arr) {
 
 
 // XXX Not needed?
+/***** UNUSED
 static inline void
 byteswap(int32_t *x) {
     char *p = (char *) x;
@@ -928,7 +932,7 @@ byteswap(int32_t *x) {
         ++p;
     }
 }
-
+*****/
 
 static inline void
 copyswap(int32_t *dst, int32_t *src) {
