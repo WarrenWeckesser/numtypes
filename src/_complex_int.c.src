@@ -845,14 +845,15 @@ PyInit__complex_int(void) {
                                 npy_complex_@typ@,
                                 npy_complex_@typ@};
 
-    #define REGISTER_BINARY_@TYP@_UFUNC(name) {                                 \
-        int check;                                                              \
-        check = PyUFunc_RegisterLoopForType(ufunc_##name, npy_complex_@typ@,    \
-                                            NPComplex@Typ@_ufunc_##name,        \
-                                            binary_@typ@_ufunc_types, 0);       \
-        if (check < 0) {                                                        \
-            goto cleanup;                                                       \
-        }                                                                       \
+    #define REGISTER_BINARY_@TYP@_UFUNC(name) {                           \
+        int check;                                                        \
+        check = PyUFunc_RegisterLoopForType(                              \
+                    ufunc_##name, npy_complex_@typ@,                      \
+                    (PyUFuncGenericFunction) NPComplex@Typ@_ufunc_##name, \
+                    binary_@typ@_ufunc_types, 0);                         \
+        if (check < 0) {                                                  \
+            goto cleanup;                                                 \
+        }                                                                 \
     }
 
     REGISTER_BINARY_@TYP@_UFUNC(add)

@@ -1359,20 +1359,21 @@ PyInit__nint(void) {
     }
 
 
-
     int binary_ufunc_types[] = {npy_nint32, npy_nint32, npy_nint32};
 
-    #define REGISTER_BINARY_UFUNC(name) \
-        PyUFuncObject* ufunc_##name = (PyUFuncObject*) PyObject_GetAttrString(numpy, #name); \
-        if (!ufunc_##name) { \
-            return NULL; \
-        } \
-        check = PyUFunc_RegisterLoopForType(ufunc_##name, npy_nint32, \
-                                            nint32_ufunc_##name, \
-                                            binary_ufunc_types, 0); \
-        Py_DECREF(ufunc_##name); \
-        if (check < 0) { \
-            return NULL; \
+    #define REGISTER_BINARY_UFUNC(name)                                   \
+        PyUFuncObject* ufunc_##name =                                     \
+            (PyUFuncObject*) PyObject_GetAttrString(numpy, #name);        \
+        if (!ufunc_##name) {                                              \
+            return NULL;                                                  \
+        }                                                                 \
+        check = PyUFunc_RegisterLoopForType(                              \
+                            ufunc_##name, npy_nint32,                     \
+                            (PyUFuncGenericFunction) nint32_ufunc_##name, \
+                            binary_ufunc_types, 0);                       \
+        Py_DECREF(ufunc_##name);                                          \
+        if (check < 0) {                                                  \
+            return NULL;                                                  \
         }
 
     REGISTER_BINARY_UFUNC(add)
