@@ -5,22 +5,21 @@
 // Python 3 only.
 //
 
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <math.h>
+#include <structmember.h>
 
 #define NPY_NO_DEPRECATED_API NPY_API_VERSION
-
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-#include <structmember.h>
 #include <numpy/arrayobject.h>
 #include <numpy/arrayscalars.h>
 #include <numpy/ufuncobject.h>
 #include <numpy/halffloat.h>
-
 
 
 // ========================================================================
@@ -268,7 +267,7 @@ PyNInt32_FromInt32(int32_t x) {
 
 
 static int
-init_argument_error()
+init_argument_error(void)
 {
     PyErr_SetString(PyExc_TypeError,
                     "nint32() argument must be an integer, "
@@ -363,6 +362,12 @@ PyNInt32_init(PyNInt32 *self, PyObject *args, PyObject *kwds)
 static PyObject*
 pynint32_richcompare(PyObject* a, PyObject* b, int op)
 {
+    // This check relies on knowing Py_LT is 0 (the lowest value)
+    // and Py_GE is 5 (the greatest value).
+    if ((op < Py_LT) || (op > Py_GE)) {
+        PyErr_SetString(PyExc_ValueError, "invalid comparison op");
+        return NULL;
+    }
     if (Py_TYPE(a) == &PyNInt32_Type && Py_TYPE(b) == &PyNInt32_Type) {
         int result;
         if (((PyNInt32 *) a)->value == INT32_MIN || ((PyNInt32 *) b)->value == INT32_MIN) {
@@ -807,8 +812,7 @@ static PyTypeObject PyNInt32_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
     .tp_name        = "nint32",
     .tp_basicsize   = sizeof(PyNInt32),
-    //.tp_repr        = pynint32_repr,
-    .tp_repr        = pynint32_str,
+    .tp_repr        = pynint32_repr,
     .tp_as_number   = &pynint32_as_number,
     .tp_hash        = pynint32_hash,
     .tp_str         = pynint32_str,
@@ -1054,6 +1058,7 @@ PyArray_Descr npynint32_descr = {
 // not allow the conversion, so the user is forced to convert their
 // data to a safe format first.
 // For now, though, I'll implement it.
+/***** UNUSED (for now)
 static void
 npy_cast_int64_to_nint32(void* from, void* to, npy_intp n,
                          void* fromarr, void* toarr)
@@ -1062,6 +1067,7 @@ npy_cast_int64_to_nint32(void* from, void* to, npy_intp n,
         ((int32_t *) to)[i] = ((int64_t *) from)[i];
     }
 }
+*****/
 
 // This function is exactly the same as npy_cast_nint32_to_int32.
 // For the moment, I'm working formally.  This can probably be removed later.
@@ -1119,6 +1125,7 @@ npy_cast_bool_to_nint32(void* from, void* to, npy_intp n,
     }
 }
 
+/***** UNUSED (for now)
 static void
 npy_cast_float_to_nint32(void* from, void* to, npy_intp n,
                          void* fromarr, void* toarr)
@@ -1128,7 +1135,9 @@ npy_cast_float_to_nint32(void* from, void* to, npy_intp n,
         ((int32_t *) to)[i] = isnan(from_value) ? INT32_MIN : (int32_t) from_value;
     }
 }
+*****/
 
+/***** UNUSED (for now)
 static void
 npy_cast_double_to_nint32(void* from, void* to, npy_intp n,
                           void* fromarr, void* toarr)
@@ -1138,6 +1147,7 @@ npy_cast_double_to_nint32(void* from, void* to, npy_intp n,
         ((int32_t *) to)[i] = isnan(from_value) ? INT32_MIN : (int32_t) from_value;
     }
 }
+*****/
 
 // ------------------------------------------------------------------------
 // ufunc inner loop functions.

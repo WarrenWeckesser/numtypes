@@ -4,18 +4,18 @@
 //  Requires C99.
 //
 
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
 #include <complex.h>
 #include <stdbool.h>
 #include <math.h>
+#include <structmember.h>
 
 #define NPY_NO_DEPRECATED_API NPY_API_VERSION
-
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-#include <structmember.h>
 #include <numpy/arrayobject.h>
 #include <numpy/arrayscalars.h>
 #include <numpy/ufuncobject.h>
