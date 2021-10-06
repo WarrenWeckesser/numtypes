@@ -4,6 +4,7 @@ from os.path import join
 def configuration(parent_package='', top_path=None):
     from numpy.distutils.misc_util import Configuration, get_info
 
+    compile_args = ['-std=c99', '-Werror']
     config = Configuration(None, parent_package, top_path)
     config.add_subpackage('numtypes')
     config.add_subpackage('numtypes/tests')
@@ -25,5 +26,5 @@ if __name__ == '__main__':
     from numpy.distutils.core import setup
 
     setup(name='numtypes',
-          version='0.0.1',
+          version='0.0.2.dev0',
           configuration=configuration)
