@@ -106,6 +106,9 @@ class logfloat:
     def __float__(self):
         return math.exp(self._logx)
 
+    def __int__(self):
+        return int(math.exp(self._logx))
+
     def __bool__(self):
         return self._logx != -math.inf
 
