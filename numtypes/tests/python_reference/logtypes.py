@@ -14,8 +14,8 @@ class logfloat:
         if len(args) > 1:
             raise ValueError('at most one positional argument may be given')
         if len(args) == 1 and logx is not None:
-            raise ValueError('either a positional argument or logx can be given, '
-                             'but not both')
+            raise ValueError('either a positional argument or logx can be '
+                             'given, but not both')
         if logx is None and len(args) == 0:
             # No arguments given.  Since float() returns 0 and complex()
             # returns 0j, we'll return log(0) which is -math.inf.
@@ -31,7 +31,7 @@ class logfloat:
                     if arg == 0:
                         self._logx = -math.inf
                     else:
-                        self._logx = math.log(arg)   
+                        self._logx = math.log(arg)
 
     def __repr__(self):
         return f"logfloat(logx={self._logx!r})"
@@ -59,11 +59,11 @@ class logfloat:
                 x2 = float(other)
             except Exception:
                 return NotImplemented
-            other = floata(z2)
+            other = logfloat(x2)
         if self._logx < other._logx:
             raise ValueError("math domain error: can't subtract a larger "
                              "value from a smaller one")
-        logdiff = self._logx  + math.log1p(-math.exp(other._logx - self._logx))
+        logdiff = self._logx + math.log1p(-math.exp(other._logx - self._logx))
         return logfloat(logx=logdiff)
 
     def __mul__(self, other):
@@ -133,8 +133,8 @@ class logcomplex:
         if len(args) > 1:
             raise ValueError('at most one positional argument may be given')
         if len(args) == 1 and logz is not None:
-            raise ValueError('either a positional argument or logz can be given, '
-                             'but not both')
+            raise ValueError('either a positional argument or logz can be '
+                             'given, but not both')
         if logz is None and len(args) == 0:
             # No arguments given.  Since float() returns 0 and complex()
             # returns 0j, we'll return log(0j) which is -math.inf.
@@ -157,7 +157,8 @@ class logcomplex:
 
     def __neg__(self):
         return logcomplex(logz=(self._logz.real +
-                                1j*math.remainder(self._logz.imag + math.pi, math.tau)))
+                                1j*math.remainder(self._logz.imag
+                                                  + math.pi, math.tau)))
 
     def __add__(self, other):
         # This is basically logaddexp for complex inputs.
@@ -177,7 +178,7 @@ class logcomplex:
         s = math.exp(ndiff)
         logr = logr1 + 0.5*math.log1p(s*(s + 2*math.cos(theta1 - theta2)))
         theta = math.atan2(math.sin(theta1) + s*math.sin(theta2),
-                            math.cos(theta1) + s*math.cos(theta2))
+                           math.cos(theta1) + s*math.cos(theta2))
         return logcomplex(logz=complex(logr, theta))
 
     def __radd__(self, other):
@@ -202,7 +203,7 @@ class logcomplex:
         s = math.exp(ndiff)
         logr = logr1 + 0.5*math.log1p(s*(s - 2*math.cos(theta1 - theta2)))
         theta = math.atan2(sgn*(math.sin(theta1) - s*math.sin(theta2)),
-                            sgn*(math.cos(theta1) - s*math.cos(theta2)))
+                           sgn*(math.cos(theta1) - s*math.cos(theta2)))
         return logcomplex(logz=complex(logr, theta))
 
     def __rsub__(self, other):
@@ -236,15 +237,17 @@ class logcomplex:
 
     def __pow__(self, other):
         p = self._logz * complex(other)
-        return logcomplex(logz=complex(p.real, math.remainder(p.imag, math.tau)))
+        return logcomplex(logz=complex(p.real,
+                                       math.remainder(p.imag, math.tau)))
 
     def __rpow__(self, other):
         if isinstance(other, logcomplex):
             log_other = other._logz
         else:
-            log_other = cmath.log(complex(other)) 
+            log_other = cmath.log(complex(other))
         p = complex(self)*log_other
-        return logcomplex(logz=complex(p.real, math.remainder(p.imag, math.tau)))
+        return logcomplex(logz=complex(p.real,
+                                       math.remainder(p.imag, math.tau)))
 
     def __abs__(self):
         return math.exp(self._logz.real)
