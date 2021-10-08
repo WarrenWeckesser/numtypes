@@ -896,7 +896,7 @@ PyMethodDef module_methods[] = {
 
 static struct PyModuleDef moduledef = {
     .m_base     = PyModuleDef_HEAD_INIT,
-    .m_name     = "_complex_int",
+    .m_name     = "_polarcomplex",
     .m_size     = -1,
     .m_methods  = module_methods,
 };
