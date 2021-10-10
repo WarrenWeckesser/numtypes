@@ -12,6 +12,11 @@ The following data types are defined in this library:
 * `polarcomplex64` and `polarcomplex128` are complex numbers represented
   in polar coordinates.  (The Python objects and NumPy data types have been
   created, but the NumPy ufuncs are not implemented yet.)
+* `logfloat` is a Python type that represents nonnegative floating point
+  numbers.  The type works with the logarithm of the numbers internally,
+  so it can do elementary arithmetic with values such as exp(-1200).
+  Currently this is a *Python* type only; a NumPy dtype has not been
+  created yet.
 
 This package is an experimental work in progress.  Use at your own risk!
 
@@ -162,6 +167,46 @@ types.
     array([polarcomplex64((2.236068, 1.1071488)),
            polarcomplex64((5, 0.92729521)), polarcomplex64((5, -1.5707964))],
           dtype=polarcomplex64)
+
+
+### `logfloat`
+
+`logfloat` represents a nonnegative floating point number. It stores the
+logarithm of the number internally, so it can represent a much greater
+range of values than the standard Python `float`.  The logarithm is displayed
+in the `repr`, and can be accessed with the `.log` attribute.  The basic
+Python arithmetic operators have been implemented.
+
+    >>> from numtypes import logfloat
+    >>> x = logfloat(log=-1000)
+    >>> x
+    logfloat(log=-1000)
+
+`x` represents `exp(-1000)`.  The value is too small to be represented
+as a regular 64 bit `float`:
+
+    >>> float(x)
+    0.0
+
+The basic arithmetic operators are implemented for the `logfloat`
+type:
+
+    >>> x/2
+    logfloat(log=-1000.6931471805599)
+    >>> 1/x
+    logfloat(log=1000)
+    >>> x**0.5
+    logfloat(log=-500)
+
+`y` is another very small value:
+
+    >>> y = logfloat(log=-1002)
+    >>> x + y
+    logfloat(log=-999.873071988957)
+    >>> x - y
+    logfloat(log=-1000.1454134578688)
+    >>> x/y
+    logfloat(log=2)
 
 
 Related work and links
