@@ -918,22 +918,6 @@ npynint32_f_setitem(PyObject* item, void* data, void* arr) {
 }
 
 
-// XXX Not needed?
-/***** UNUSED
-static inline void
-byteswap(int32_t *x) {
-    char *p = (char *) x;
-    char *q = p + sizeof(*x);
-    while (p < q) {
-        char tmp = *p;
-        --q;
-        *p = *q;
-        *q = tmp;
-        ++p;
-    }
-}
-*****/
-
 static inline void
 copyswap(int32_t *dst, int32_t *src) {
     char *from = (char *) src;
@@ -962,10 +946,10 @@ npynint32_f_copyswap(void* dst, void* src, int swap, void* arr) {
 
 static void
 npynint32_f_copyswapn(void* dst_, npy_intp dstride,
-                     void* src_, npy_intp sstride,
-                     npy_intp n, int swap, void* arr) {
+                      void* src_, npy_intp sstride,
+                      npy_intp n, int swap, void* arr) {
     char *dst = (char *) dst_;
-    char *src = (char * )src_;
+    char *src = (char *) src_;
     if (!src) {
         return;
     }
