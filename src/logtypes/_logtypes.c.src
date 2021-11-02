@@ -1322,7 +1322,8 @@ PyInit__logtypes(void)
         return NULL;
     }
 
-    Py_SET_TYPE(&logfloat@nbits@_descr, &PyArrayDescr_Type);
+    Py_TYPE(&logfloat@nbits@_descr) = &PyArrayDescr_Type;
+
     // Get a type number for the new dtype.
     int npy_logfloat@nbits@ = PyArray_RegisterDataType(&logfloat@nbits@_descr);
     if (npy_logfloat@nbits@ < 0) {
