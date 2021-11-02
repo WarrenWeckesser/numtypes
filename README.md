@@ -15,8 +15,11 @@ The following data types are defined in this library:
 * `logfloat` is a Python type that represents nonnegative floating point
   numbers.  The type works with the logarithm of the numbers internally,
   so it can do elementary arithmetic with values such as exp(-1200).
-  Currently this is a *Python* type only; a NumPy dtype has not been
-  created yet.
+  This is a *Python* type only; the NumPy types are `logfloat32` and `logfloat64`.
+* `logfloat32` and `logfloat64` are nonnegative floating point values
+  that store the *logarithm* of the value instead of the value.  Arithmetic
+  operations and NumPy ufuncs are implemented to allow operations on these
+  types over a large range of values without overflow or underflow.
 
 This package is an experimental work in progress.  Use at your own risk!
 
@@ -207,6 +210,45 @@ type:
     logfloat(log=-1000.1454134578688)
     >>> x/y
     logfloat(log=2)
+
+
+### `logfloat32` and `logfloat64`
+
+The following shows calculations involving floating point values that
+would be too small to represent as standard IEEE-754 32 bit floating
+point:
+
+    >>> import numpy as np
+    >>> from numtypes import logfloat32
+
+Note that `logfloat32(log=-1000)` represents the value whose log is
+-1000, which is approximately `5.0759588975e-435`.
+
+    >>> x = np.array([logfloat32(log=-1000), logfloat32(log=-1001.5),
+    ...               logfloat32(log=-1002)])
+    ...
+    >>> x
+    array([logfloat32(log=-1000.0), logfloat32(log=-1001.5),
+           logfloat32(log=-1002.0)], dtype=logfloat32)
+    >>> 2*x
+    array([logfloat32(log=-999.3068), logfloat32(log=-1000.8068),
+           logfloat32(log=-1001.3068)], dtype=logfloat32)
+    >>> np.sqrt(x)
+    array([logfloat32(log=-500.0), logfloat32(log=-500.75),
+           logfloat32(log=-501.0)], dtype=logfloat32)
+    >>> c = np.full(len(x), fill_value=logfloat32(log=-999))
+    >>> c
+    array([logfloat32(log=-999.0), logfloat32(log=-999.0),
+           logfloat32(log=-999.0)], dtype=logfloat32)
+    >>> x + c
+    array([logfloat32(log=-998.68677), logfloat32(log=-998.9211),
+           logfloat32(log=-998.9514)], dtype=logfloat32)
+    >>> x * c
+    array([logfloat32(log=-1999.0), logfloat32(log=-2000.5),
+           logfloat32(log=-2001.0)], dtype=logfloat32)
+    >>> x / c
+    array([logfloat32(log=-1.0), logfloat32(log=-2.5), logfloat32(log=-3.0)],
+           dtype=logfloat32)
 
 
 Related work and links

@@ -342,8 +342,9 @@ PyLogFloat_nb_true_divide(PyObject *o1, PyObject *o2)
 }
 
 
+// XXX o3 is unused!  This is the 'mod' parameter.
 static PyObject *
-PyLogFloat_nb_power(PyObject *o1, PyObject *o2)
+PyLogFloat_nb_power(PyObject *o1, PyObject *o2, PyObject *o3)
 {
     double log1, value2;
     int error;

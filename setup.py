@@ -25,6 +25,10 @@ def configuration(parent_package='', top_path=None):
                          extra_compile_args=compile_args,
                          sources=[join('src', 'logtypes',
                                        '_python_logtypes.c')])
+    config.add_extension('numtypes._logtypes',
+                         extra_compile_args=compile_args,
+                         sources=[join('src', 'logtypes',
+                                       '_logtypes.c.src')])
     return config
 
 
@@ -32,5 +36,5 @@ if __name__ == '__main__':
     from numpy.distutils.core import setup
 
     setup(name='numtypes',
-          version='0.0.3.dev0',
+          version='0.0.3.dev1',
           configuration=configuration)

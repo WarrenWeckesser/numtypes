@@ -1,0 +1,1537 @@
+//
+//  Create the NumPy data types logfloat32 and logfloat64.
+//
+//  These types represent floating point values, but
+//  internally the log of the value is stored.
+//
+//  Requires C99.
+//
+
+#define PY_SSIZE_T_CLEAN
+#include <Python.h>
+
+#include <stdio.h>
+
+#include <math.h>
+#include <complex.h>
+#include <structmember.h>
+
+
+#define NPY_NO_DEPRECATED_API NPY_API_VERSION
+#include <numpy/arrayobject.h>
+#include <numpy/arrayscalars.h>
+#include <numpy/ufuncobject.h>
+
+
+#define LOG2 (0.693147180559945309417232121458176568075500)
+
+//
+// C functions for adding and subtracting log-based `double` values.
+//
+
+static float
+get_float_log_from_object(PyObject *o, int *perror);
+static double
+get_double_log_from_object(PyObject *o, int *perror);
+
+
+/**begin repeat
+ *
+ * #nbits = 32, 64#
+ * #ctype = float, double#
+ * #suffix = f, #
+ */
+
+static @ctype@
+log@suffix@_no_fp_error(@ctype@ value)
+{
+    if (value < 0.0) {
+        return NAN;
+    }
+    if (value == 0.0) {
+        return -INFINITY;
+    }
+    return log@suffix@(value);
+}
+
+
+//
+// Compute log(exp(log1) + exp(log2))
+//
+static @ctype@
+logfloat@nbits@_log_add(@ctype@ log1, @ctype@ log2)
+{
+    if (log1 == -INFINITY) {
+        return log2;
+    }
+    else if (log2 == -INFINITY) {
+        return log1;
+    }
+    else {
+        return ((log1 > log2) ? log1 : log2) + log1p@suffix@(exp@suffix@(-fabs@suffix@(log2 - log1)));
+    }
+}
+
+//
+// Compute log(exp(log1) - exp(log2))
+//
+// if log2 > log1, nan is returned.
+//
+static @ctype@
+logsubexp@suffix@(@ctype@ log1, @ctype@ log2)
+{
+    if (log2 == -INFINITY) {
+        return log1;
+    }
+    if (log1 < log2) {
+        return NAN;
+    }
+    if (log1 == log2) {
+        return -INFINITY;
+    }
+
+    return log1 + log1p@suffix@(-exp@suffix@(log2 - log1));
+}
+
+//
+// Compute log(exp(log1) - exp(log2))
+//
+// if log2 > log1, nan is returned.
+//
+static @ctype@
+logfloat@nbits@_log_subtract(@ctype@ log1, @ctype@ log2)
+{
+    if (log1 < log2) {
+        return NAN;
+    }
+    if (log1 == log2) {
+        return -INFINITY;
+    }
+    return log1 + log1p@suffix@(-exp@suffix@(log2 - log1));
+}
+
+//
+// Compute log(exp(log1) * exp(log2)) = log1 + log2
+//
+static @ctype@
+logfloat@nbits@_log_multiply(@ctype@ log1, @ctype@ log2)
+{
+    return log1 + log2;
+}
+
+//
+// Compute log(exp(log1) / exp(log2)) = log1 - log2
+//
+static @ctype@
+logfloat@nbits@_log_true_divide(@ctype@ log1, @ctype@ log2)
+{
+    return log1 - log2;
+}
+
+//
+// Compute log(exp(log1) ** exp(log2))
+//
+static @ctype@
+logfloat@nbits@_log_power(@ctype@ log1, @ctype@ log2)
+{
+    double value2 = exp(log2);
+    return value2*log1;
+}
+
+//
+// Compute +log1
+//
+static @ctype@
+logfloat@nbits@_log_positive(@ctype@ log1)
+{
+    return log1;
+}
+
+/**end repeat**/
+
+
+// ========================================================================
+// Create the Python types logfloat32 and logfloat64.
+// ========================================================================
+
+/**begin repeat
+ *
+ * #nbits = 32,    64      #
+ * #ctype = float, double  #
+ */
+
+typedef struct {
+    PyObject_HEAD
+    @ctype@ log;  // The natural log of the value.
+} PyLogFloat@nbits@;
+
+// Forward declaration.
+static PyTypeObject PyLogFloat@nbits@_Type;
+
+static inline int
+PyLogFloat@nbits@_Check(PyObject* object) {
+    return PyObject_IsInstance(object, (PyObject*) &PyLogFloat@nbits@_Type);
+}
+
+/**end repeat**/
+
+/**begin repeat
+ *
+ * #nbits    = 32,        64         #
+ * #ctype    = float,     double     #
+ * #NPY_TYPE = NPY_FLOAT, NPY_DOUBLE #
+ */
+
+//
+// Create an logfloatNN from a given C double.
+//
+static PyObject*
+PyLogFloat@nbits@_from_log(double value) {
+    PyLogFloat@nbits@ *p = (PyLogFloat@nbits@ *) PyLogFloat@nbits@_Type.tp_alloc(&PyLogFloat@nbits@_Type, 0);
+    if (p) {
+        p->log = (@ctype@) value;
+    }
+    return (PyObject*) p;
+}
+
+//
+// Create a logfloatNN from a C value of matching type.
+// The given value is assigned directly to the log field
+// of the C structure.
+//
+static PyObject*
+PyLogFloat@nbits@_from_@ctype@(@ctype@ value) {
+    PyLogFloat@nbits@ *p = (PyLogFloat@nbits@ *) PyLogFloat@nbits@_Type.tp_alloc(&PyLogFloat@nbits@_Type, 0);
+    if (p) {
+        p->log = value;
+    }
+    return (PyObject*) p;
+}
+
+//
+// get_@ctype@_log_from_object attempts to get the log value
+// as a C type from a given Python object.
+// On return *perror is 0 on success, or -1 on error.
+//
+static @ctype@
+get_@ctype@_log_from_object(PyObject *o, int *perror)
+{
+    *perror = 0;
+
+    if (PyLogFloat32_Check(o)) {
+        return (@ctype@) ((PyLogFloat32 *) o)->log;
+    }
+    else if (PyLogFloat64_Check(o)) {
+        return (@ctype@) ((PyLogFloat64 *) o)->log;
+    }
+    else {
+        double value = PyFloat_AsDouble(o);
+        if (value == -1.0 && PyErr_Occurred()) {
+            *perror = -1;
+            return -1.0;
+        }
+        return (@ctype@) log_no_fp_error(value);
+    }
+}
+
+static int
+PyLogFloat@nbits@_init(PyLogFloat@nbits@ *self, PyObject *args, PyObject *kwds)
+{
+    static char *kwlist[] = {"", "log", NULL};
+    PyObject *arg = NULL;
+    PyObject *logobj = NULL;
+    double argvalue;
+
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O$O", kwlist,
+                                     &arg, &logobj)) {
+        return -1;
+    }
+
+    if (arg != NULL && logobj != NULL) {
+        PyErr_SetString(PyExc_TypeError,
+                        "either a positional argument or the log keyword can "
+                        "be given, but not both");
+        return -1;
+    }
+
+    if (arg == NULL && logobj == NULL) {
+        // No arguments given.  Since float() returns 0 and complex()
+        // returns 0j, we'll set self->log to the "value" of log(0),
+        // which is -inf.
+        self->log = -INFINITY;
+        return 0;
+    }
+
+    if (logobj != NULL) {
+        // Got the keyword parameter log=value
+        self->log = (@ctype@) PyFloat_AsDouble(logobj);
+        if (self->log == -1.0 && PyErr_Occurred()) {
+            return -1;
+        }
+        return 0;
+    }
+
+    // Got a single positional argument.
+
+    if (PyLogFloat32_Check(arg)) {
+        self->log = (@ctype@) ((PyLogFloat32 *) arg)->log;
+        return 0;
+    }
+
+    if (PyLogFloat64_Check(arg)) {
+        self->log = (@ctype@) ((PyLogFloat64 *) arg)->log;
+        return 0;
+    }
+
+    argvalue = PyFloat_AsDouble(arg);
+    if (argvalue == -1.0 && PyErr_Occurred()) {
+        return -1;
+    }
+    self->log = (@ctype@) log(argvalue);
+    return 0;
+}
+
+
+static PyObject*
+PyLogFloat@nbits@_str(PyObject* self)
+{
+    // Use the corresponding str method of np.float32 or np.float64
+    // to print the log value stored in the logfloat@nbits@ object.
+    PyObject *pyobj = PyArrayScalar_New(Float@nbits@);
+    if (pyobj == NULL) {
+        return NULL;
+    }
+    PyArrayScalar_ASSIGN(pyobj, Float@nbits@, ((PyLogFloat@nbits@ *)self)->log);
+    PyObject *obj = PyUnicode_FromFormat("logfloat@nbits@(log=%S)", pyobj);
+    Py_DECREF(pyobj);
+    return obj;
+}
+
+// Handles hash(obj) for obj a logfloatNN.
+static Py_hash_t
+PyLogFloat@nbits@_hash(PyObject* self)
+{
+    Py_hash_t h = (Py_hash_t) ((PyLogFloat@nbits@ *) self)->log;
+    /* Never return the special error value -1 */
+    return h == -1 ? 2 : h;
+}
+
+// Handles bool(obj) for obj a logfloatNN.
+static int
+PyLogFloat@nbits@_nb_bool(PyLogFloat@nbits@ *o) {
+    return (o->log != -INFINITY);
+}
+
+// Handles float(obj) for obj a logfloatNN.
+static PyObject *
+PyLogFloat@nbits@_float(PyLogFloat@nbits@ *o) {
+    return PyFloat_FromDouble(exp((double) o->log));
+}
+
+
+// Handles int(obj) for obj a logfloatNN.
+static PyObject *
+PyLogFloat@nbits@_long(PyLogFloat@nbits@ *o) {
+    return PyLong_FromDouble(exp((double) o->log));
+}
+
+//
+// Python number protocol: unary methods
+//
+
+static PyObject *
+PyLogFloat@nbits@_nb_negative(PyLogFloat@nbits@ *o)
+{
+    PyErr_SetString(PyExc_ValueError,
+                    "math domain error; can't negate a logfloat@nbits@ instance");
+    return NULL;
+}
+
+
+static PyObject *
+PyLogFloat@nbits@_nb_positive(PyLogFloat@nbits@ *o) {
+    Py_INCREF(o);
+    return (PyObject *) o;
+}
+
+
+static PyObject *
+PyLogFloat@nbits@_nb_absolute(PyLogFloat@nbits@ *o) {
+    Py_INCREF(o);
+    return (PyObject *) o;
+}
+
+
+static PyObject*
+PyLogFloat@nbits@_richcompare(PyObject* a, PyObject* b, int op)
+{
+    double b_log;
+
+    if (PyLogFloat32_Check(b)) {
+        b_log = (double) ((PyLogFloat32 *) b)->log;
+    }
+    else if (PyLogFloat64_Check(b)) {
+        b_log = ((PyLogFloat64 *) b)->log;
+    }
+    else {
+        double b_value;
+        b_value = PyFloat_AsDouble(b);
+        if (b_value == -1.0 && PyErr_Occurred()) {
+            return NULL;
+        }
+        if (b_value < 0.0) {
+            Py_RETURN_RICHCOMPARE(0.0, b_value, op);
+        }
+        if (b_value == 0.0) {
+            b_log = -INFINITY;
+        }
+        else {
+            b_log = log(b_value);
+        }
+    }
+    Py_RETURN_RICHCOMPARE((double) ((PyLogFloat@nbits@ *) a)->log, b_log, op);
+}
+
+
+//
+// Python number protocol: binary methods
+//
+
+static PyObject *
+PyLogFloat@nbits@_nb_add(PyObject *o1, PyObject *o2)
+{
+    double log1, log2;
+    int error;
+
+    // Ensure that o1 is a PyLogFloat@nbits@ instance.
+    if (PyLogFloat@nbits@_Check(o2)) {
+        PyObject *tmp = o1;
+        o1 = o2;
+        o2 = tmp;
+    }
+    log1 = (double) ((PyLogFloat@nbits@ *) o1)->log;
+    log2 = get_double_log_from_object(o2, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    return (PyObject *) PyLogFloat@nbits@_from_log(logfloat64_log_add(log1, log2));
+}
+
+
+static PyObject *
+PyLogFloat@nbits@_nb_subtract(PyObject *o1, PyObject *o2)
+{
+    double log1, log2, logdiff;
+    int error;
+
+    log1 = get_double_log_from_object(o1, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    log2 = get_double_log_from_object(o2, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    // XXX Check for log1 or log2 being nan or -inf.
+
+    if (log1 < log2) {
+        PyErr_SetString(PyExc_ValueError,
+                        "math domain error: can't subtract a larger logfloat@nbits@ "
+                        "value from a smaller one");
+        return NULL;
+    }
+    logdiff = logfloat64_log_subtract(log1, log2);
+    return (PyObject *) PyLogFloat@nbits@_from_log(logdiff);
+}
+
+
+static PyObject *
+PyLogFloat@nbits@_nb_multiply(PyObject *o1, PyObject *o2)
+{
+    double log1, log2;
+    int error;
+
+    log1 = get_double_log_from_object(o1, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    log2 = get_double_log_from_object(o2, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    // XXX Check for log1 or log2 being nan or -inf.
+    return (PyObject *) PyLogFloat@nbits@_from_log(log1 + log2);
+}
+
+static PyObject *
+PyLogFloat@nbits@_nb_true_divide(PyObject *o1, PyObject *o2)
+{
+    double log1, log2;
+    int error;
+
+    log1 = get_double_log_from_object(o1, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    log2 = get_double_log_from_object(o2, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    // XXX Check for log1 or log2 being nan or -inf.
+    return (PyObject *) PyLogFloat@nbits@_from_log(log1 - log2);
+}
+
+
+// XXX o3 is unused!  This is the 'mod' parameter.
+static PyObject *
+PyLogFloat@nbits@_nb_power(PyObject *o1, PyObject *o2, PyObject *o3)
+{
+    double log1, value2;
+    int error;
+
+    log1 = get_double_log_from_object(o1, &error);
+    if (error == -1) {
+        return NULL;
+    }
+    value2 = PyFloat_AsDouble(o2);
+    if (value2 == -1.0 && PyErr_Occurred()) {
+        return NULL;
+    }
+    // XXX Check for log1 or value2 being nan or -inf.
+    return (PyObject *) PyLogFloat@nbits@_from_log(value2*log1);
+}
+
+
+//
+// Attributes and methods
+//
+
+PyObject *PyLogFloat@nbits@_get_real(PyObject* self, void *ignore)
+{
+    Py_INCREF(self);
+    return self;
+}
+
+PyObject *PyLogFloat@nbits@_get_imag(PyObject* self, void *ignore)
+{
+    return PyFloat_FromDouble(0.0);
+}
+
+PyObject *PyLogFloat@nbits@_get_log(PyObject* self, void *ignore)
+{
+    // Convert the log value to a np.float@nbits@.
+    PyObject *pyobj = PyArrayScalar_New(Float@nbits@);
+    if (pyobj == NULL) {
+        return NULL;
+    }
+    PyArrayScalar_ASSIGN(pyobj, Float@nbits@, ((PyLogFloat@nbits@ *)self)->log);
+    return pyobj;
+}
+
+// The attributes are read-only.
+
+static PyGetSetDef PyLogFloat@nbits@_getset[] = {
+    {"real", PyLogFloat@nbits@_get_real, NULL, "real part", NULL},
+    {"imag", PyLogFloat@nbits@_get_imag, NULL, "imaginary part", NULL},
+    {"log", PyLogFloat@nbits@_get_log, NULL, "natural log of the number", NULL},
+    {NULL}, // Sentinel
+};
+
+static PyObject *
+PyLogFloat@nbits@_conj(PyLogFloat@nbits@ *self, PyObject *Py_UNUSED(ignored))
+{
+    Py_INCREF(self);
+    return (PyObject *) self;
+}
+
+
+static PyMethodDef PyLogFloat@nbits@_methods[] = {
+    {"conjugate", (PyCFunction) PyLogFloat@nbits@_conj, METH_NOARGS, "complex conjugate"},
+    {NULL}  /* Sentinel */
+};
+
+
+//
+// Python number protocol methods for logfloatNN.
+//
+static PyNumberMethods PyLogFloat@nbits@_as_number = {
+    .nb_negative     = (unaryfunc) PyLogFloat@nbits@_nb_negative,
+    .nb_positive     = (unaryfunc) PyLogFloat@nbits@_nb_positive,
+    .nb_absolute     = (unaryfunc) PyLogFloat@nbits@_nb_absolute,
+    .nb_bool         = (inquiry) PyLogFloat@nbits@_nb_bool,
+    .nb_float        = (unaryfunc) PyLogFloat@nbits@_float,
+    .nb_int          = (unaryfunc) PyLogFloat@nbits@_long,
+    .nb_add          = PyLogFloat@nbits@_nb_add,
+    .nb_subtract     = PyLogFloat@nbits@_nb_subtract,
+    .nb_multiply     = PyLogFloat@nbits@_nb_multiply,
+    .nb_true_divide  = PyLogFloat@nbits@_nb_true_divide,
+    .nb_power        = PyLogFloat@nbits@_nb_power,
+};
+
+#define DOC_LOGFLOAT@nbits@ "logfloat type (TODO: finish this docstring)"
+
+//
+// Python type object for logfloatNN.
+//
+static PyTypeObject PyLogFloat@nbits@_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name        = "logfloat@nbits@",
+    .tp_doc         = DOC_LOGFLOAT@nbits@,
+    .tp_basicsize   = sizeof(PyLogFloat@nbits@),
+    .tp_repr        = PyLogFloat@nbits@_str,
+    .tp_as_number   = &PyLogFloat@nbits@_as_number,
+    .tp_hash        = PyLogFloat@nbits@_hash,
+    .tp_str         = PyLogFloat@nbits@_str,
+    .tp_flags       = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+    .tp_richcompare = PyLogFloat@nbits@_richcompare,
+    .tp_init        = (initproc) PyLogFloat@nbits@_init,
+    .tp_new         = PyType_GenericNew,
+    .tp_getset      = PyLogFloat@nbits@_getset,
+    .tp_methods     = PyLogFloat@nbits@_methods
+};
+
+/**end repeat**/
+
+
+// ========================================================================
+// NumPy support.
+// ========================================================================
+
+// ------------------------------------------------------------------------
+// Functions to be put in the PyArray_ArrFuncs structure.
+// We implement:
+//     getitem
+//     setitem
+//     copyswap
+//     copyswapn
+//     nonzero
+//     compare
+//     cast (an array of function pointers)
+// ------------------------------------------------------------------------
+
+/**begin repeat
+ * #nbits = 32,    64      #
+ * #ctype = float, double  #
+ */
+
+//
+// The getitem function converts the data element in a NumPy array into
+// an instance of the corresponding Python object.  We use the function
+// PyLogFloat@nbits@_from_@ctype@ to do this.
+//
+static PyObject *
+logfloat@nbits@_f_getitem(void *data, void *arr)
+{
+    PyObject *p = (PyObject *) PyLogFloat@nbits@_from_@ctype@(*(@ctype@ *) data);
+    return p;
+}
+
+//
+// The setitem function sets the memory of an element of a NumPy array
+// from the given Python object.
+//
+static int
+logfloat@nbits@_f_setitem(PyObject* item, void* data, void* arr)
+{
+    int error;
+
+    @ctype@ value = get_@ctype@_log_from_object(item, &error);
+    if (error == 0) {
+        *((@ctype@ *) data) = value;
+    }
+    return error;
+}
+
+//
+// Utility function used in logfloat@nbits@_f_copyswap and
+// logfloat@nbits@_f_copyswapn.
+//
+static inline void
+copyswap_@ctype@(@ctype@ *dst, @ctype@ *src) {
+    char *from = (char *) src;
+    char *to = (char *) (dst + 1);
+    for (size_t i = 0; i < sizeof(@ctype@); ++i) {
+        --to;
+        *to = *from;
+        ++from;
+    }
+}
+
+static void
+logfloat@nbits@_f_copyswap(void* dst, void* src, int swap, void* arr)
+{
+    if (!src) {
+        return;
+    }
+    if (swap) {
+        copyswap_@ctype@((@ctype@ *) dst, (@ctype@ *) src);
+    }
+    else {
+        *((@ctype@ *) dst) = *((@ctype@ *) src);
+    }
+}
+
+static void
+logfloat@nbits@_f_copyswapn(void* dst_, npy_intp dstride,
+                            void* src_, npy_intp sstride,
+                            npy_intp n, int swap, void* arr) {
+    char *dst = (char *) dst_;
+    char *src = (char *) src_;
+    if (!src) {
+        return;
+    }
+    if (swap) {
+        for (npy_intp i = 0; i < n; i++) {
+            copyswap_@ctype@((@ctype@ *) dst, (@ctype@ *) src);
+            dst += dstride;
+            src += sstride;
+        }
+    }
+    else if (dstride == sizeof(@ctype@) && sstride == sizeof(@ctype@)) {
+        // Each array is contiguous, so we can use a single call to memcpy.
+        memcpy(dst, src, n*sizeof(@ctype@));
+    }
+    else {
+        for (npy_intp i = 0; i < n; i++) {
+            *((@ctype@ *) dst) = *((@ctype@ *) src);
+            dst += dstride;
+            src += sstride;
+        }
+    }
+}
+
+static npy_bool
+logfloat@nbits@_f_nonzero(void* data, void* arr)
+{
+    return (*((@ctype@ *) data) != -INFINITY) ? NPY_TRUE : NPY_FALSE;
+}
+
+
+static int
+logfloat@nbits@_f_compare(const void* d0, const void* d1, void* arr)
+{
+    @ctype@ x = *((@ctype@ *) d0);
+    @ctype@ y = *((@ctype@ *) d1);
+    // XXX FIXME: Handle NAN correctly?
+    return x < y ? -1 : x == y ? 0 : 1;
+}
+
+/**begin repeat1
+ * # op  = min, max #
+ * # cmp = <  , >   #
+ */
+static int 
+logfloat@nbits@_f_arg@op@(void *data, npy_intp n, npy_intp *ind, void *arr)
+{
+    @ctype@ extreme;
+    npy_intp iextreme;
+    @ctype@ *x = (@ctype@ *) data;
+
+    if (n < 1) {
+        // I don't know if this could ever happen, but just in case...
+        return 0;
+    }
+    extreme = x[0];
+    iextreme = 0;
+    for (npy_intp i = 1; i < n; ++i) {
+        @ctype@ value = x[i];
+        if (value @cmp@ extreme) {
+            extreme = value;
+            iextreme = i;
+        }
+    }
+    *ind = iextreme;
+    return 0;
+}
+/**end repeat1**/
+
+// ------------------------------------------------------------------------
+// Functions for casting from logfloat@nbits@ to NumPy builtin data types.
+// These will be assigned to the appropriate slots in the array
+// npynint32_arrfuncs.cast[].
+// ------------------------------------------------------------------------
+
+//
+// Now we generate a set functions for casting from logfloat@nbits@
+// to the builtin NumPy types.  Functions are only implemented for
+// the integer, float and complex types.  These are used in the .cast
+// array of the PyArray_ArrFuncs 
+//
+
+/**begin repeat1
+ * #nptype  = int8,   uint8,   int16,   uint16,   int32,   uint32,   int64,   uint64,   float, double, cfloat,        cdouble        #
+ * #npctype = int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double, complex float, complex double #
+ */
+
+static void
+cast_logfloat@nbits@_to_@nptype@(void *from, void *to, npy_intp n,
+                                 void *fromarr, void *toarr)
+{
+    for (npy_intp i = 0; i < n; i++) {
+        double logval = (double) ((@ctype@ *) from)[i];
+        ((@npctype@ *) to)[i] = (@npctype@) exp(logval);
+    }
+}
+
+/**end repeat1**/
+
+static void
+cast_logfloat@nbits@_to_npy_bool(void *from, void *to, npy_intp n,
+                                 void *fromarr, void *toarr)
+{
+    for (npy_intp i = 0; i < n; i++) {
+        @ctype@ logval = ((@ctype@ *) from)[i];
+        // Note that nan is cast to True.  This is consistent with numpy.
+        // E.g. np.array([0.0, 1.0, np.nan]).astype(np.bool8) gives
+        // array([False,  True,  True]).
+        ((npy_bool *) to)[i] = !(isinf(logval) && logval < 0);
+    }
+}
+
+//
+// These are the functions for casting from the builtin NumPy types
+// to logfloat@nbits@.  We'll tell NumPy about these functions in the
+// module init function by calling PyArray_RegisterCastFunc.
+// Conversion issues:
+// * Complex types are not handled.
+// * Negative values are converted to NAN.
+//
+
+/**begin repeat1
+ * #nptype  = int8,   uint8,   int16,   uint16,   int32,   uint32,   int64,   uint64,   float, double #
+ * #npctype = int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double #
+ */
+
+static void
+cast_@nptype@_to_logfloat@nbits@(void *from, void *to, npy_intp n,
+                                 void *fromarr, void *toarr)
+{
+    for (npy_intp i = 0; i < n; i++) {
+        @npctype@ val = ((@npctype@ *) from)[i];
+        ((@ctype@ *) to)[i] = (@ctype@) log((double) val);
+    }
+}
+
+/**end repeat1**/
+
+
+static PyArray_ArrFuncs logfloat@nbits@_arrfuncs = {
+    .getitem    = logfloat@nbits@_f_getitem,
+    .setitem    = logfloat@nbits@_f_setitem,
+    .copyswapn  = logfloat@nbits@_f_copyswapn,
+    .copyswap   = logfloat@nbits@_f_copyswap,
+    .nonzero    = logfloat@nbits@_f_nonzero,
+    .compare    = logfloat@nbits@_f_compare,
+    .argmin     = logfloat@nbits@_f_argmin,
+    .argmax     = logfloat@nbits@_f_argmax,
+    .cast       = {[NPY_BOOL]    = cast_logfloat@nbits@_to_npy_bool,
+                   [NPY_INT8]    = cast_logfloat@nbits@_to_int8,
+                   [NPY_UINT8]   = cast_logfloat@nbits@_to_uint8,
+                   [NPY_INT16]   = cast_logfloat@nbits@_to_int16,
+                   [NPY_UINT16]  = cast_logfloat@nbits@_to_uint16,
+                   [NPY_INT32]   = cast_logfloat@nbits@_to_int32,
+                   [NPY_UINT32]  = cast_logfloat@nbits@_to_uint32,
+                   [NPY_INT64]   = cast_logfloat@nbits@_to_int64,
+                   [NPY_UINT64]  = cast_logfloat@nbits@_to_uint64,
+                   [NPY_FLOAT]   = cast_logfloat@nbits@_to_float,
+                   [NPY_DOUBLE]  = cast_logfloat@nbits@_to_double,
+                   [NPY_CFLOAT]  = cast_logfloat@nbits@_to_cfloat,
+                   [NPY_CDOUBLE] = cast_logfloat@nbits@_to_cdouble},
+};
+
+PyArray_Descr logfloat@nbits@_descr = {
+    PyObject_HEAD_INIT(0)
+    .typeobj    = &PyLogFloat@nbits@_Type,
+    .kind       = 'x',  // XXX ???
+    .type       = 'x',  // XXX FIXME
+    .byteorder  = '=',
+    /*
+     * For now, we need NPY_NEEDS_PYAPI in order to make numpy detect our
+     * exceptions.  This isn't technically necessary,
+     * since we're careful about thread safety, and hopefully future
+     * versions of numpy will recognize that.
+     * XXX The flags and the above comment were copied from numpy's
+     * XXX _rational_tests.c.src.  Are they relevant for logfloat@nbits@?
+     */
+    .flags      = NPY_NEEDS_PYAPI | NPY_USE_GETITEM | NPY_USE_SETITEM,
+    .elsize     = sizeof(@ctype@),
+    .alignment  = offsetof(struct {char c; @ctype@ value;}, value),
+    .f          = &logfloat@nbits@_arrfuncs,
+};
+
+/**end repeat**/
+
+
+//
+// Two more casting functions that we need, to cast between logfloat32
+// and logfloat64.
+//
+
+static void
+cast_logfloat32_to_logfloat64(void *from, void *to, npy_intp n,
+                              void *fromarr, void *toarr)
+{
+    for (npy_intp i = 0; i < n; i++) {
+        ((double *) to)[i] = (double) ((float *) from)[i];
+    }
+}
+
+static void
+cast_logfloat64_to_logfloat32(void *from, void *to, npy_intp n,
+                              void *fromarr, void *toarr)
+{
+    for (npy_intp i = 0; i < n; i++) {
+        ((float *) to)[i] = (float) ((double *) from)[i];
+    }
+}
+
+// ------------------------------------------------------------------------
+// ufunc inner loop functions.
+// ------------------------------------------------------------------------
+
+/**begin repeat
+ *
+ * #nbits = 32,    64     #
+ * #ctype = float, double #
+ */
+
+static void
+logfloat@nbits@_ufunc_positive(char** args, npy_intp const *dimensions,
+                               npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        *(@ctype@ *) o = *(@ctype@ *) i;
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_isfinite(char** args, npy_intp const *dimensions,
+                               npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        @ctype@ logval = *(@ctype@ *) i;
+        *(npy_bool *) o = !(isnan(logval) || (isinf(logval) && (logval > 0)));
+    }
+}
+
+
+static void
+logfloat@nbits@_ufunc_isinf(char** args, npy_intp const *dimensions,
+                            npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        @ctype@ logval = *(@ctype@ *) i;
+        *(npy_bool *) o = isinf(logval) && (logval > 0);
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_isnan(char** args, npy_intp const *dimensions,
+                            npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        @ctype@ logval = *(@ctype@ *) i;
+        *(npy_bool *) o = isnan(logval);
+    }
+}
+
+// For the logfloatNN types, 'absolute' and 'positive' are the
+// same function.
+#define logfloat@nbits@_ufunc_absolute logfloat@nbits@_ufunc_positive
+
+static void
+logfloat@nbits@_ufunc_reciprocal(char** args, npy_intp const *dimensions,
+                                 npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        *(@ctype@ *) o = -(*(@ctype@ *) i);
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_square(char** args, npy_intp const *dimensions,
+                             npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        *(@ctype@ *) o = 2*(*(@ctype@ *) i);
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_sqrt(char** args, npy_intp const *dimensions,
+                           npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        *(@ctype@ *) o = (*(@ctype@ *) i) / 2;
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_cbrt(char** args, npy_intp const *dimensions,
+                           npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        *(@ctype@ *) o = (*(@ctype@ *) i) / 3;
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_sign(char** args, npy_intp const *dimensions,
+                           npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        @ctype@ result;
+        @ctype@ value = (*(@ctype@ *) i);
+
+        if (isnan(value)) {
+            result = NAN;
+        }
+        else if (isinf(value) && value < 0) {
+            result = value;
+        }
+        else {
+            result = 0;
+        }
+        *(@ctype@ *) o = result;
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_exp(char** args, npy_intp const *dimensions,
+                          npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        *(@ctype@ *) o = (@ctype@) exp(*(@ctype@ *) i);
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_exp2(char** args, npy_intp const *dimensions,
+                           npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        *(@ctype@ *) o = (@ctype@) (LOG2 * exp(*(@ctype@ *) i));
+    }
+}
+
+static void
+logfloat@nbits@_ufunc_expm1(char** args, npy_intp const *dimensions,
+                            npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        @ctype@ result;
+        @ctype@ value = *(@ctype@ *) i;
+        if (isinf(value) && value < 0) {
+            result = 0;
+        }
+        else {
+            result = exp(value) + log(-expm1(-exp(value)));
+        }
+        *(@ctype@ *) o = result;
+    }
+}
+
+
+static void
+logfloat@nbits@_ufunc_log(char** args, npy_intp const *dimensions,
+                          npy_intp const *steps, void* data)
+{
+    char *i = args[0];
+    char *o = args[1];
+    npy_intp istep = steps[0];
+    npy_intp ostep = steps[1];
+    npy_intp n = *dimensions;
+
+    for (int k = 0; k < n; ++k, i += istep, o += ostep) {
+        @ctype@ result;
+        @ctype@ value = *(@ctype@ *) i;
+        if (value < 0) {
+            result = NAN;
+        }
+        else if (value == 0) {
+            result = -INFINITY;
+        }
+        else {
+            result = log(value);
+        }
+        *(@ctype@ *) o = result;
+    }
+}
+
+/**begin repeat1
+ * #oper = add, subtract, multiply, true_divide, power #
+ */
+static void
+logfloat@nbits@_ufunc_@oper@(char** args, const npy_intp* dimensions,
+                             const npy_intp* steps, void* data)
+{
+    char *i0 = args[0];
+    char *i1 = args[1];
+    char  *o = args[2];
+    npy_intp n = dimensions[0];
+    npy_intp is0 = steps[0];
+    npy_intp is1 = steps[1];
+    npy_intp os = steps[2];
+
+    for (npy_intp k = 0; k < n; ++k, i0 += is0, i1 += is1, o += os) {
+        @ctype@ x = *(@ctype@ *) i0;
+        @ctype@ y = *(@ctype@ *) i1;
+        *(@ctype@ *) o = logfloat@nbits@_log_@oper@(x, y);
+    }
+}
+
+/**end repeat1**/
+
+/**begin repeat1
+ * #oper = less, less_equal, greater, greater_equal, equal, not_equal #
+ * #cmp =  <,    <=,         >,       >=,            ==,    !=        #
+ */
+
+static void
+logfloat@nbits@_ufunc_@oper@(char** args, const npy_intp* dimensions,
+                             const npy_intp* steps, void* data)
+{
+    char *i0 = args[0];
+    char *i1 = args[1];
+    char  *o = args[2];
+    npy_intp n = dimensions[0];
+    npy_intp is0 = steps[0];
+    npy_intp is1 = steps[1];
+    npy_intp os = steps[2];
+
+    for (npy_intp k = 0; k < n; ++k, i0 += is0, i1 += is1, o += os) {
+        @ctype@ x = *(@ctype@ *) i0;
+        @ctype@ y = *(@ctype@ *) i1;
+        *(npy_bool *) o = x @cmp@ y;
+    }
+}
+
+/**end repeat1**/
+
+/**begin repeat1
+ * #oper = minimum, maximum #
+ * #cmp =  <,       >       #
+ */
+
+static void
+logfloat@nbits@_ufunc_@oper@(char** args, const npy_intp* dimensions,
+                             const npy_intp* steps, void* data)
+{
+    char *i0 = args[0];
+    char *i1 = args[1];
+    char  *o = args[2];
+    npy_intp n = dimensions[0];
+    npy_intp is0 = steps[0];
+    npy_intp is1 = steps[1];
+    npy_intp os = steps[2];
+
+    for (npy_intp k = 0; k < n; ++k, i0 += is0, i1 += is1, o += os) {
+        @ctype@ x = *(@ctype@ *) i0;
+        @ctype@ y = *(@ctype@ *) i1;
+        if (isnan(x) || isnan(y)) {
+            *(@ctype@ *) o = NAN;
+        }
+        else {
+            *(@ctype@ *) o = (x @cmp@ y) ? x : y;
+        }
+    }
+}
+
+/**end repeat1**/
+
+/**end repeat**/
+
+
+static PyObject *
+get_numpy_module()
+{
+    PyObject *numpy_str = PyUnicode_FromString("numpy");
+    if (!numpy_str) {
+        return NULL;
+    }
+
+    PyObject *numpy = PyImport_Import(numpy_str);
+    Py_DECREF(numpy_str);
+    return numpy;
+}
+
+
+//
+// Register the builtin type with the given typenum as
+// castable to logfloat32 and logfloat64.
+//
+// Return values:
+//   0  Success
+//  -1  PyArray_DescrFromType(from_typenum) failed
+//  -2  PyArray_RegisterCanCast for casting the given from_typenum to
+//      to_typenum failed.
+//
+static int
+register_typenum_cancast_to_typenum(int from_typenum, int to_typenum)
+{
+    PyArray_Descr *descr = PyArray_DescrFromType(from_typenum);
+
+    if (descr != NULL) {
+        int status = PyArray_RegisterCanCast(descr, to_typenum, NPY_NOSCALAR);
+        Py_DECREF(descr);
+        return (status < 0) ? -2 : 0;
+    }
+    else {
+        return -1;
+    }
+}
+
+// ========================================================================
+// Python extension module definition.
+// ========================================================================
+
+// These are the builtin types that can be cast to logfloat32 or logfloat64.
+static int castable_typenums[] = {
+    NPY_INT8, NPY_UINT8, NPY_INT16, NPY_UINT16,
+    NPY_INT32, NPY_UINT32, NPY_INT64, NPY_UINT64,
+    NPY_FLOAT, NPY_DOUBLE
+};
+
+#define NUM_CASTABLE_TYPENUMS (sizeof(castable_typenums)/sizeof(castable_typenums[0]))
+
+
+PyMethodDef module_methods[] = {
+    {0} // sentinel
+};
+
+static struct PyModuleDef moduledef = {
+    .m_base     = PyModuleDef_HEAD_INIT,
+    .m_name     = "_logtypes",
+    .m_doc      = "Module that defines the logfloat32 and logfloat64 NumPy types",
+    .m_size     = -1,
+    .m_methods  = module_methods,  // XXX Not needed?
+};
+
+PyMODINIT_FUNC
+PyInit__logtypes(void)
+{
+    PyObject *module;
+
+    // Initialize numpy.
+    import_array();
+    if (PyErr_Occurred()) {
+        return NULL;
+    }
+
+    import_umath();
+    if (PyErr_Occurred()) {
+         return NULL;
+    }
+
+    PyObject *numpy = get_numpy_module();
+    if (numpy == NULL) {
+        return NULL;
+    }
+
+    module = PyModule_Create(&moduledef);
+    if (module == NULL) {
+        Py_DECREF(numpy);
+        return NULL;
+    }
+
+// XXX FIXME: Lots of `return NULL` here without cleaning up refcounts
+// of new references created so far...
+
+/**begin repeat
+ *
+ * #nbits = 32, 64#
+ * #ctype = float, double#
+ */
+
+    // Can't set this until we import numpy
+    PyLogFloat@nbits@_Type.tp_base = &PyGenericArrType_Type;
+
+    if (PyType_Ready(&PyLogFloat@nbits@_Type) < 0) {
+        return NULL;
+    }
+
+    Py_SET_TYPE(&logfloat@nbits@_descr, &PyArrayDescr_Type);
+    // Get a type number for the new dtype.
+    int npy_logfloat@nbits@ = PyArray_RegisterDataType(&logfloat@nbits@_descr);
+    if (npy_logfloat@nbits@ < 0) {
+        return NULL;
+    }
+
+/**begin repeat1
+ * #nptype   = int8,     uint8,     int16,     uint16,     int32,     uint32,     int64,     uint64,     float,     double     #
+ * #NPY_TYPE = NPY_INT8, NPY_UINT8, NPY_INT16, NPY_UINT16, NPY_INT32, NPY_UINT32, NPY_INT64, NPY_UINT64, NPY_FLOAT, NPY_DOUBLE #
+ */
+
+    if (PyArray_RegisterCastFunc(PyArray_DescrFromType(@NPY_TYPE@),
+                                 npy_logfloat@nbits@,
+                                 cast_@nptype@_to_logfloat@nbits@) < 0) {
+        return NULL;
+    }
+
+/**end repeat1**/
+/**end repeat**/
+
+    //
+    // Register the functions for casting between logfloat32 and logfloat64.
+    //
+
+    if (PyArray_RegisterCastFunc(&logfloat32_descr,
+                                 npy_logfloat64,
+                                 cast_logfloat32_to_logfloat64) < 0) {
+        return NULL;
+    }
+
+    if (PyArray_RegisterCastFunc(&logfloat64_descr,
+                                 npy_logfloat32,
+                                 cast_logfloat64_to_logfloat32) < 0) {
+        return NULL;
+    }
+
+    // Can cast from logfloat32 to logfloat64.
+    if (PyArray_RegisterCanCast(&logfloat32_descr, npy_logfloat64, NPY_NOSCALAR) < 0) {
+        return NULL;
+    }
+
+    // All builtin integer and float types are castable to logfloat32 and logfloat64.
+    for (size_t k = 0; k < NUM_CASTABLE_TYPENUMS; ++k) {
+        if (register_typenum_cancast_to_typenum(castable_typenums[k], npy_logfloat32) < 0) {
+            return NULL;
+        }
+        if (register_typenum_cancast_to_typenum(castable_typenums[k], npy_logfloat64) < 0) {
+            return NULL;
+        }
+    }
+
+    //
+    // Register unary ufunc loops for logfloat32 and logfloat64
+    // numerical calculations.
+    //
+
+    // XXX could reuse the arrays for the binary ufuncs...
+    int logfloat32_unary_ufunc_types[] = {npy_logfloat32, npy_logfloat32};
+    int logfloat64_unary_ufunc_types[] = {npy_logfloat64, npy_logfloat64};
+
+/**begin repeat
+ * #oper = positive, absolute, reciprocal, square, sqrt, cbrt, sign, exp, exp2, expm1, log #
+ */
+
+    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
+    if (!ufunc_@oper@) {
+        return NULL;
+    }
+
+/**begin repeat1
+ * #nbits = 32, 64#
+ */
+
+    if (PyUFunc_RegisterLoopForType(
+                        ufunc_@oper@, npy_logfloat@nbits@,
+                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
+                        logfloat@nbits@_unary_ufunc_types, 0) < 0) {
+        return NULL;
+    }
+
+/**end repeat1**/
+
+    Py_DECREF(ufunc_@oper@);
+
+/**end repeat**/
+
+    //
+    // Register unary ufunc loops for logfloat32 and logfloat64
+    // logical calculations.
+    //
+
+    int logfloat32_logical_unary_ufunc_types[] = {npy_logfloat32, NPY_BOOL};
+    int logfloat64_logical_unary_ufunc_types[] = {npy_logfloat64, NPY_BOOL};
+
+/**begin repeat
+ * #oper = isfinite, isinf, isnan #
+ */
+
+    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
+    if (!ufunc_@oper@) {
+        return NULL;
+    }
+
+/**begin repeat1
+ * #nbits = 32, 64#
+ */
+
+    if (PyUFunc_RegisterLoopForType(
+                        ufunc_@oper@, npy_logfloat@nbits@,
+                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
+                        logfloat@nbits@_logical_unary_ufunc_types, 0) < 0) {
+        return NULL;
+    }
+
+/**end repeat1**/
+
+    Py_DECREF(ufunc_@oper@);
+
+/**end repeat**/
+
+
+    //
+    // Register binary ufunc loops for logfloat32 and logfloat64.
+    //
+
+    int logfloat32_binary_ufunc_types[] = {npy_logfloat32,
+                                           npy_logfloat32,
+                                           npy_logfloat32};
+    int logfloat64_binary_ufunc_types[] = {npy_logfloat64,
+                                           npy_logfloat64,
+                                           npy_logfloat64};
+
+/**begin repeat
+ * #oper = add, subtract, multiply, true_divide, power, minimum, maximum #
+ */
+
+    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
+    if (!ufunc_@oper@) {
+        return NULL;
+    }
+
+/**begin repeat1
+ * #nbits = 32, 64#
+ */
+
+    if (PyUFunc_RegisterLoopForType(
+                        ufunc_@oper@, npy_logfloat@nbits@,
+                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
+                        logfloat@nbits@_binary_ufunc_types, 0) < 0) {
+        return NULL;
+    }
+
+/**end repeat1**/
+
+    Py_DECREF(ufunc_@oper@);
+
+/**end repeat**/
+
+    int logfloat32_comparison_ufunc_types[] = {npy_logfloat32,
+                                               npy_logfloat32,
+                                               NPY_BOOL};
+    int logfloat64_comparison_ufunc_types[] = {npy_logfloat64,
+                                               npy_logfloat64,
+                                               NPY_BOOL};
+
+/**begin repeat
+ * #oper = less, less_equal, greater, greater_equal, equal, not_equal #
+ */
+
+    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
+    if (!ufunc_@oper@) {
+        return NULL;
+    }
+
+/**begin repeat1
+ * #nbits = 32, 64#
+ */
+
+    if (PyUFunc_RegisterLoopForType(
+                        ufunc_@oper@, npy_logfloat@nbits@,
+                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
+                        logfloat@nbits@_comparison_ufunc_types, 0) < 0) {
+        return NULL;
+    }
+
+/**end repeat1**/
+
+    Py_DECREF(ufunc_@oper@);
+
+/**end repeat**/
+
+/**begin repeat
+ * #nbits = 32, 64#
+ */
+
+    // Support logfloat@nbits@.dtype
+    if (PyDict_SetItemString(PyLogFloat@nbits@_Type.tp_dict, "dtype",
+                             (PyObject*) &logfloat@nbits@_descr) < 0) {
+        return NULL;
+    }
+
+    Py_INCREF(&PyLogFloat@nbits@_Type);
+    if (PyModule_AddObject(module, "logfloat@nbits@", (PyObject*) &PyLogFloat@nbits@_Type) < 0) {
+        Py_DECREF(&PyLogFloat@nbits@_Type);
+        Py_DECREF(module);
+        return NULL;
+    };
+
+/**end repeat**/
+
+    return module;
+}
