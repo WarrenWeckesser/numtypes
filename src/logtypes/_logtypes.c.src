@@ -1257,6 +1257,36 @@ register_typenum_cancast_to_typenum(int from_typenum, int to_typenum)
 // Python extension module definition.
 // ========================================================================
 
+static int
+register_loop(PyObject *np, char *ufuncname,
+              int npy_logfloat32, PyUFuncGenericFunction logfloat32_loop, int *logfloat32_type_codes,
+              int npy_logfloat64, PyUFuncGenericFunction logfloat64_loop, int *logfloat64_type_codes)
+
+{
+    PyUFuncObject* ufunc = (PyUFuncObject*) PyObject_GetAttrString(np, ufuncname);
+    if (!ufunc) {
+        return -1;
+    }
+
+    if (PyUFunc_RegisterLoopForType(
+                        ufunc, npy_logfloat32,
+                        (PyUFuncGenericFunction) logfloat32_loop,
+                        logfloat32_type_codes, 0) < 0) {
+        Py_DECREF(ufunc);
+        return -1;
+    }
+    if (PyUFunc_RegisterLoopForType(
+                        ufunc, npy_logfloat64,
+                        (PyUFuncGenericFunction) logfloat64_loop,
+                        logfloat64_type_codes, 0) < 0) {
+        Py_DECREF(ufunc);
+        return -1;
+    }
+
+    Py_DECREF(ufunc);
+    return 0;
+}
+
 // These are the builtin types that can be cast to logfloat32 or logfloat64.
 static int castable_typenums[] = {
     NPY_INT8, NPY_UINT8, NPY_INT16, NPY_UINT16,
@@ -1283,6 +1313,7 @@ PyMODINIT_FUNC
 PyInit__logtypes(void)
 {
     PyObject *module;
+    int status;
 
     // Initialize numpy.
     import_array();
@@ -1306,9 +1337,6 @@ PyInit__logtypes(void)
         return NULL;
     }
 
-// XXX FIXME: Lots of `return NULL` here without cleaning up refcounts
-// of new references created so far...
-
 /**begin repeat
  *
  * #nbits = 32, 64#
@@ -1319,7 +1347,7 @@ PyInit__logtypes(void)
     PyLogFloat@nbits@_Type.tp_base = &PyGenericArrType_Type;
 
     if (PyType_Ready(&PyLogFloat@nbits@_Type) < 0) {
-        return NULL;
+        goto fail;
     }
 
     Py_TYPE(&logfloat@nbits@_descr) = &PyArrayDescr_Type;
@@ -1327,7 +1355,7 @@ PyInit__logtypes(void)
     // Get a type number for the new dtype.
     int npy_logfloat@nbits@ = PyArray_RegisterDataType(&logfloat@nbits@_descr);
     if (npy_logfloat@nbits@ < 0) {
-        return NULL;
+        goto fail;
     }
 
 /**begin repeat1
@@ -1338,7 +1366,7 @@ PyInit__logtypes(void)
     if (PyArray_RegisterCastFunc(PyArray_DescrFromType(@NPY_TYPE@),
                                  npy_logfloat@nbits@,
                                  cast_@nptype@_to_logfloat@nbits@) < 0) {
-        return NULL;
+        goto fail;
     }
 
 /**end repeat1**/
@@ -1351,27 +1379,27 @@ PyInit__logtypes(void)
     if (PyArray_RegisterCastFunc(&logfloat32_descr,
                                  npy_logfloat64,
                                  cast_logfloat32_to_logfloat64) < 0) {
-        return NULL;
+        goto fail;
     }
 
     if (PyArray_RegisterCastFunc(&logfloat64_descr,
                                  npy_logfloat32,
                                  cast_logfloat64_to_logfloat32) < 0) {
-        return NULL;
+        goto fail;
     }
 
     // Can cast from logfloat32 to logfloat64.
     if (PyArray_RegisterCanCast(&logfloat32_descr, npy_logfloat64, NPY_NOSCALAR) < 0) {
-        return NULL;
+        goto fail;
     }
 
     // All builtin integer and float types are castable to logfloat32 and logfloat64.
     for (size_t k = 0; k < NUM_CASTABLE_TYPENUMS; ++k) {
         if (register_typenum_cancast_to_typenum(castable_typenums[k], npy_logfloat32) < 0) {
-            return NULL;
+            goto fail;
         }
         if (register_typenum_cancast_to_typenum(castable_typenums[k], npy_logfloat64) < 0) {
-            return NULL;
+            goto fail;
         }
     }
 
@@ -1388,25 +1416,12 @@ PyInit__logtypes(void)
  * #oper = positive, absolute, reciprocal, square, sqrt, cbrt, sign, exp, exp2, expm1, log #
  */
 
-    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
-    if (!ufunc_@oper@) {
-        return NULL;
+    status = register_loop(numpy, "@oper@",
+                           npy_logfloat32, logfloat32_ufunc_@oper@, logfloat32_unary_ufunc_types,
+                           npy_logfloat64, logfloat64_ufunc_@oper@, logfloat64_unary_ufunc_types);
+    if (status < 0) {
+        goto fail;
     }
-
-/**begin repeat1
- * #nbits = 32, 64#
- */
-
-    if (PyUFunc_RegisterLoopForType(
-                        ufunc_@oper@, npy_logfloat@nbits@,
-                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
-                        logfloat@nbits@_unary_ufunc_types, 0) < 0) {
-        return NULL;
-    }
-
-/**end repeat1**/
-
-    Py_DECREF(ufunc_@oper@);
 
 /**end repeat**/
 
@@ -1422,25 +1437,12 @@ PyInit__logtypes(void)
  * #oper = isfinite, isinf, isnan #
  */
 
-    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
-    if (!ufunc_@oper@) {
-        return NULL;
+    status = register_loop(numpy, "@oper@",
+                           npy_logfloat32, logfloat32_ufunc_@oper@, logfloat32_logical_unary_ufunc_types,
+                           npy_logfloat64, logfloat64_ufunc_@oper@, logfloat64_logical_unary_ufunc_types);
+    if (status < 0) {
+        goto fail;
     }
-
-/**begin repeat1
- * #nbits = 32, 64#
- */
-
-    if (PyUFunc_RegisterLoopForType(
-                        ufunc_@oper@, npy_logfloat@nbits@,
-                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
-                        logfloat@nbits@_logical_unary_ufunc_types, 0) < 0) {
-        return NULL;
-    }
-
-/**end repeat1**/
-
-    Py_DECREF(ufunc_@oper@);
 
 /**end repeat**/
 
@@ -1460,25 +1462,12 @@ PyInit__logtypes(void)
  * #oper = add, subtract, multiply, true_divide, power, minimum, maximum #
  */
 
-    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
-    if (!ufunc_@oper@) {
-        return NULL;
+    status = register_loop(numpy, "@oper@",
+                           npy_logfloat32, logfloat32_ufunc_@oper@, logfloat32_binary_ufunc_types,
+                           npy_logfloat64, logfloat64_ufunc_@oper@, logfloat64_binary_ufunc_types);
+    if (status < 0) {
+        goto fail;
     }
-
-/**begin repeat1
- * #nbits = 32, 64#
- */
-
-    if (PyUFunc_RegisterLoopForType(
-                        ufunc_@oper@, npy_logfloat@nbits@,
-                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
-                        logfloat@nbits@_binary_ufunc_types, 0) < 0) {
-        return NULL;
-    }
-
-/**end repeat1**/
-
-    Py_DECREF(ufunc_@oper@);
 
 /**end repeat**/
 
@@ -1493,25 +1482,12 @@ PyInit__logtypes(void)
  * #oper = less, less_equal, greater, greater_equal, equal, not_equal #
  */
 
-    PyUFuncObject* ufunc_@oper@ = (PyUFuncObject*) PyObject_GetAttrString(numpy, "@oper@");
-    if (!ufunc_@oper@) {
-        return NULL;
+    status = register_loop(numpy, "@oper@",
+                           npy_logfloat32, logfloat32_ufunc_@oper@, logfloat32_comparison_ufunc_types,
+                           npy_logfloat64, logfloat64_ufunc_@oper@, logfloat64_comparison_ufunc_types);
+    if (status < 0) {
+        goto fail;
     }
-
-/**begin repeat1
- * #nbits = 32, 64#
- */
-
-    if (PyUFunc_RegisterLoopForType(
-                        ufunc_@oper@, npy_logfloat@nbits@,
-                        (PyUFuncGenericFunction) logfloat@nbits@_ufunc_@oper@,
-                        logfloat@nbits@_comparison_ufunc_types, 0) < 0) {
-        return NULL;
-    }
-
-/**end repeat1**/
-
-    Py_DECREF(ufunc_@oper@);
 
 /**end repeat**/
 
@@ -1522,17 +1498,21 @@ PyInit__logtypes(void)
     // Support logfloat@nbits@.dtype
     if (PyDict_SetItemString(PyLogFloat@nbits@_Type.tp_dict, "dtype",
                              (PyObject*) &logfloat@nbits@_descr) < 0) {
-        return NULL;
+        goto fail;
     }
 
     Py_INCREF(&PyLogFloat@nbits@_Type);
     if (PyModule_AddObject(module, "logfloat@nbits@", (PyObject*) &PyLogFloat@nbits@_Type) < 0) {
         Py_DECREF(&PyLogFloat@nbits@_Type);
-        Py_DECREF(module);
-        return NULL;
+        goto fail;
     };
 
 /**end repeat**/
 
     return module;
+
+fail:
+    Py_DECREF(module);
+    Py_DECREF(numpy);
+    return NULL;
 }
