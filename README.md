@@ -5,26 +5,65 @@ Custom data types for NumPy.
 
 The following data types are defined in this library:
 
-* `nint32` is a 32 bit signed integer type that uses the most negative
-  value as `nan`.
-* `complex_int8`, `complex_int16`, `complex_int32` and `complex_int64` are
-  complex numbers with integer real and imaginary parts.
-* `polarcomplex64` and `polarcomplex128` are complex numbers represented
-  in polar coordinates.  (The Python objects and NumPy data types have been
-  created, but the NumPy ufuncs are not implemented yet.)
-* `logfloat` is a Python type that represents nonnegative floating point
-  numbers.  The type works with the logarithm of the numbers internally,
-  so it can do elementary arithmetic with values such as exp(-1200).
-  This is a *Python* type only; the NumPy types are `logfloat32` and `logfloat64`.
 * `logfloat32` and `logfloat64` are nonnegative floating point values
   that store the *logarithm* of the value instead of the value.  Arithmetic
   operations and NumPy ufuncs are implemented to allow operations on these
   types over a large range of values without overflow or underflow.
+* `nint32` is a 32 bit signed integer type that uses the most negative
+  value as `nan`.
+* `polarcomplex64` and `polarcomplex128` are complex numbers represented
+  in polar coordinates.  (The Python objects and NumPy data types have been
+  created, but the NumPy ufuncs are not implemented yet.)
+* `complex_int8`, `complex_int16`, `complex_int32` and `complex_int64` are
+  complex numbers with integer real and imaginary parts.
+* `logfloat` is a Python type that represents nonnegative floating point
+  numbers.  The type works with the logarithm of the numbers internally,
+  so it can do elementary arithmetic with values such as exp(-1200).
+  This is a *Python* type only; the NumPy types are `logfloat32` and `logfloat64`.
 
 This package is an experimental work in progress.  Use at your own risk!
 
 Examples
 --------
+
+### `logfloat32` and `logfloat64`
+
+The following shows calculations involving floating point values that
+would be too small to represent as standard IEEE-754 32 bit floating
+point:
+
+    >>> import numpy as np
+    >>> from numtypes import logfloat32
+
+Note that `logfloat32(log=-1000)` represents the value whose log is
+-1000, which is approximately `5.0759588975e-435`.
+
+    >>> x = np.array([logfloat32(log=-1000), logfloat32(log=-1001.5),
+    ...               logfloat32(log=-1002)])
+    ...
+    >>> x
+    array([logfloat32(log=-1000.0), logfloat32(log=-1001.5),
+           logfloat32(log=-1002.0)], dtype=logfloat32)
+    >>> 2*x
+    array([logfloat32(log=-999.3068), logfloat32(log=-1000.8068),
+           logfloat32(log=-1001.3068)], dtype=logfloat32)
+    >>> np.sqrt(x)
+    array([logfloat32(log=-500.0), logfloat32(log=-500.75),
+           logfloat32(log=-501.0)], dtype=logfloat32)
+    >>> c = np.full(len(x), fill_value=logfloat32(log=-999))
+    >>> c
+    array([logfloat32(log=-999.0), logfloat32(log=-999.0),
+           logfloat32(log=-999.0)], dtype=logfloat32)
+    >>> x + c
+    array([logfloat32(log=-998.68677), logfloat32(log=-998.9211),
+           logfloat32(log=-998.9514)], dtype=logfloat32)
+    >>> x * c
+    array([logfloat32(log=-1999.0), logfloat32(log=-2000.5),
+           logfloat32(log=-2001.0)], dtype=logfloat32)
+    >>> x / c
+    array([logfloat32(log=-1.0), logfloat32(log=-2.5), logfloat32(log=-3.0)],
+           dtype=logfloat32)
+
 
 ### Integers with `nan`, `nint32`
 
@@ -65,47 +104,6 @@ Some examples of `nint32`:
 
     >>> np.isnan(b)
     array([False,  True, False, False])
-
-
-### Complex integers
-
-Some examples of using the the complex integer data types:
-
-    >>> from numtypes import complex_int8, complex_int32
-
-    >>> z8 = np.array([complex_int8(1+2j), complex_int8(3-4j), complex_int8(5+12j)])
-    >>> z8
-    array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
-
-    >>> abs(z8)
-    array([ 2.23606798,  5.        , 13.        ])
-
-    >>> z8.conj()
-    array([(1-2j), (3+4j), (5-12j)], dtype='complex_int8')
-
-    >>> z8 * z8.conj()
-    array([(5+0j), (25+0j), (-87+0j)], dtype='complex_int8')  # Note the overflow!
-
-    >>> z8 + 100
-    array([(101+2j), (103-4j), (105+12j)], dtype='complex_int8')
-
-    >>> 3*z8
-    array([(3+6j), (9-12j), (15+36j)], dtype='complex_int8')
-
-    >>> z32 = np.array([complex_int32(1j), complex_int32(8+0j), complex_int32(12+5j)])
-    >>> z32
-    array([(0+1j), (8+0j), (12+5j)], dtype='complex_int32')
-
-    >>> z8 + z32
-    array([(1+3j), (11-4j), (17+17j)], dtype='complex_int32')
-
-**Note**:  Currently, the `.real` and `.imag` properties of the `complex_int`
-data types do not work correctly!
-
-    >>> z8.real
-    array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
-    >>> z8.imag
-    array([(0+0j), (0+0j), (0+0j)], dtype='complex_int8')
 
 
 ### Polar complex types
@@ -172,6 +170,47 @@ types.
           dtype=polarcomplex64)
 
 
+### Complex integers
+
+Some examples of using the the complex integer data types:
+
+    >>> from numtypes import complex_int8, complex_int32
+
+    >>> z8 = np.array([complex_int8(1+2j), complex_int8(3-4j), complex_int8(5+12j)])
+    >>> z8
+    array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
+
+    >>> abs(z8)
+    array([ 2.23606798,  5.        , 13.        ])
+
+    >>> z8.conj()
+    array([(1-2j), (3+4j), (5-12j)], dtype='complex_int8')
+
+    >>> z8 * z8.conj()
+    array([(5+0j), (25+0j), (-87+0j)], dtype='complex_int8')  # Note the overflow!
+
+    >>> z8 + 100
+    array([(101+2j), (103-4j), (105+12j)], dtype='complex_int8')
+
+    >>> 3*z8
+    array([(3+6j), (9-12j), (15+36j)], dtype='complex_int8')
+
+    >>> z32 = np.array([complex_int32(1j), complex_int32(8+0j), complex_int32(12+5j)])
+    >>> z32
+    array([(0+1j), (8+0j), (12+5j)], dtype='complex_int32')
+
+    >>> z8 + z32
+    array([(1+3j), (11-4j), (17+17j)], dtype='complex_int32')
+
+**Note**:  Currently, the `.real` and `.imag` properties of the `complex_int`
+data types do not work correctly!
+
+    >>> z8.real
+    array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
+    >>> z8.imag
+    array([(0+0j), (0+0j), (0+0j)], dtype='complex_int8')
+
+
 ### `logfloat`
 
 `logfloat` represents a nonnegative floating point number. It stores the
@@ -211,45 +250,7 @@ type:
     >>> x/y
     logfloat(log=2)
 
-
-### `logfloat32` and `logfloat64`
-
-The following shows calculations involving floating point values that
-would be too small to represent as standard IEEE-754 32 bit floating
-point:
-
-    >>> import numpy as np
-    >>> from numtypes import logfloat32
-
-Note that `logfloat32(log=-1000)` represents the value whose log is
--1000, which is approximately `5.0759588975e-435`.
-
-    >>> x = np.array([logfloat32(log=-1000), logfloat32(log=-1001.5),
-    ...               logfloat32(log=-1002)])
-    ...
-    >>> x
-    array([logfloat32(log=-1000.0), logfloat32(log=-1001.5),
-           logfloat32(log=-1002.0)], dtype=logfloat32)
-    >>> 2*x
-    array([logfloat32(log=-999.3068), logfloat32(log=-1000.8068),
-           logfloat32(log=-1001.3068)], dtype=logfloat32)
-    >>> np.sqrt(x)
-    array([logfloat32(log=-500.0), logfloat32(log=-500.75),
-           logfloat32(log=-501.0)], dtype=logfloat32)
-    >>> c = np.full(len(x), fill_value=logfloat32(log=-999))
-    >>> c
-    array([logfloat32(log=-999.0), logfloat32(log=-999.0),
-           logfloat32(log=-999.0)], dtype=logfloat32)
-    >>> x + c
-    array([logfloat32(log=-998.68677), logfloat32(log=-998.9211),
-           logfloat32(log=-998.9514)], dtype=logfloat32)
-    >>> x * c
-    array([logfloat32(log=-1999.0), logfloat32(log=-2000.5),
-           logfloat32(log=-2001.0)], dtype=logfloat32)
-    >>> x / c
-    array([logfloat32(log=-1.0), logfloat32(log=-2.5), logfloat32(log=-3.0)],
-           dtype=logfloat32)
-
+--------------------------------------------------------------------------
 
 Related work and links
 ----------------------
