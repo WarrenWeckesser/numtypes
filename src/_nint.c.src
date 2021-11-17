@@ -129,6 +129,25 @@ nint32_true_divide(int32_t x, int32_t y, bool *zero_division)
     return (double) x / y;
 }
 
+static inline int32_t
+nint32_minimum(int32_t x, int32_t y)
+{
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return INT32_MIN;
+    }
+    return (x < y) ? x : y;
+}
+
+static inline int32_t
+nint32_maximum(int32_t x, int32_t y)
+{
+    if ((x == INT32_MIN) || (y == INT32_MIN)) {
+        return INT32_MIN;
+    }
+    return (x > y) ? x : y;
+}
+
+
 /***** UNUSED
 static inline int32_t
 nint32_remainder(int32_t x, int32_t y, bool *zero_division)
@@ -1246,6 +1265,30 @@ BINARY_UFUNC(subtract)
 BINARY_UFUNC(multiply)
 BINARY_UFUNC(floor_divide)
 
+/**begin repeat
+ * #oper = minimum, maximum #
+ */
+
+static void
+nint32_ufunc_@oper@(char** args, const npy_intp* dimensions,
+                    const npy_intp* steps, void* data)
+{
+    char *i0 = args[0];
+    char *i1 = args[1];
+    char  *o = args[2];
+    npy_intp n = dimensions[0];
+    npy_intp is0 = steps[0];
+    npy_intp is1 = steps[1];
+    npy_intp os = steps[2];
+
+    for (npy_intp k = 0; k < n; ++k, i0 += is0, i1 += is1, o += os) {
+        int32_t x = *(int32_t *) i0;
+        int32_t y = *(int32_t *) i1;
+        *(int32_t *) o = nint32_@oper@(x, y);
+    }
+}
+
+/**end repeat**/
 
 // ========================================================================
 // Python extension module definition.
@@ -1437,6 +1480,8 @@ PyInit__nint(void) {
     REGISTER_BINARY_UFUNC(subtract)
     REGISTER_BINARY_UFUNC(multiply)
     REGISTER_BINARY_UFUNC(floor_divide)
+    REGISTER_BINARY_UFUNC(minimum)
+    REGISTER_BINARY_UFUNC(maximum)
 
 
     // Create module

@@ -2,6 +2,7 @@
 import pytest
 import math
 import numpy as np
+from numpy.testing import assert_equal
 from numtypes import nint32
 
 
@@ -83,3 +84,30 @@ def test_init_arg_too_big(value):
 def test_init_bad_arg(arg):
     with pytest.raises(TypeError, match='argument must be'):
         nint32(arg)
+
+
+@pytest.mark.parametrize('extreme_func, expected',
+                         [(np.maximum, [20, 10, 18]),
+                          (np.minimum, [10, -2, 10])])
+def test_extreme_func(extreme_func, expected):
+    a = np.array([10, -2, 18], dtype=np.int32).astype(nint32)
+    b = np.array([20, 10, 10], dtype=np.int32).astype(nint32)
+    m = extreme_func(a, b)
+    assert m.dtype == nint32
+    assert_equal(m, expected)
+
+
+@pytest.mark.parametrize('methodname, expected', [('min', -2), ('max', 18)])
+def test_extreme_method(methodname, expected):
+    a = np.array([10, -2, 18], dtype=nint32)
+    m = getattr(a, methodname)()
+    assert m.dtype == nint32
+    assert m == expected
+
+
+@pytest.mark.parametrize('methodname', ['min', 'max'])
+def test_extreme_method_with_nan(methodname):
+    a = np.array([10, np.nan, -2, 18], dtype=nint32)
+    m = getattr(a, methodname)()
+    assert m.dtype == nint32
+    assert np.isnan(m)

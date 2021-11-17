@@ -36,5 +36,5 @@ if __name__ == '__main__':
     from numpy.distutils.core import setup
 
     setup(name='numtypes',
-          version='0.0.3.dev1',
+          version='0.0.3.dev2',
           configuration=configuration)
