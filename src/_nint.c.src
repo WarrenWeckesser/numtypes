@@ -28,13 +28,15 @@
 
 
 static inline int32_t
-nint32_neg(int32_t x) {
+nint32_neg(int32_t x)
+{
     return -x;
 }
 
 
 static inline int32_t
-nint32_abs(int32_t x) {
+nint32_abs(int32_t x)
+{
     if (x >= 0) {
         return x;
     }
@@ -45,7 +47,8 @@ nint32_abs(int32_t x) {
 
 
 static inline int32_t
-nint32_add(int32_t x, int32_t y, bool *overflow) {
+nint32_add(int32_t x, int32_t y, bool *overflow)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return INT32_MIN;
     }
@@ -57,7 +60,8 @@ nint32_add(int32_t x, int32_t y, bool *overflow) {
 
 
 static inline int32_t
-nint32_subtract(int32_t x, int32_t y, bool *overflow) {
+nint32_subtract(int32_t x, int32_t y, bool *overflow)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return INT32_MIN;
     }
@@ -88,7 +92,8 @@ nint32_multiply(int32_t x, int32_t y, bool *overflow)
 // (like Python, not C)
 
 static inline int32_t
-nint32_floor_divide(int32_t x, int32_t y, bool *zero_division) {
+nint32_floor_divide(int32_t x, int32_t y, bool *zero_division)
+{
     int32_t q;
 
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
@@ -112,7 +117,8 @@ nint32_floor_divide(int32_t x, int32_t y, bool *zero_division) {
 
 
 static inline double
-nint32_true_divide(int32_t x, int32_t y, bool *zero_division) {
+nint32_true_divide(int32_t x, int32_t y, bool *zero_division)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return NAN;
     }
@@ -125,7 +131,8 @@ nint32_true_divide(int32_t x, int32_t y, bool *zero_division) {
 
 /***** UNUSED
 static inline int32_t
-nint32_remainder(int32_t x, int32_t y, bool *zero_division) {
+nint32_remainder(int32_t x, int32_t y, bool *zero_division)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return INT32_MIN;
     }
@@ -146,7 +153,8 @@ nint32_remainder(int32_t x, int32_t y, bool *zero_division) {
 
 /***** UNUSED
 static inline int32_t
-nint32_sign(int32_t x) {
+nint32_sign(int32_t x)
+{
     if (x == INT32_MIN) {
         return x;
     }
@@ -155,7 +163,8 @@ nint32_sign(int32_t x) {
 
 
 static inline int
-nint32_eq(int32_t x, int32_t y) {
+nint32_eq(int32_t x, int32_t y)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return 0;
     }
@@ -164,13 +173,15 @@ nint32_eq(int32_t x, int32_t y) {
 
 
 static inline int
-nint32_ne(int32_t x, int32_t y) {
+nint32_ne(int32_t x, int32_t y)
+{
     return !nint32_eq(x, y);
 }
 
 
 static inline int
-nint32_lt(int32_t x, int32_t y) {
+nint32_lt(int32_t x, int32_t y)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return 0;
     }
@@ -179,7 +190,8 @@ nint32_lt(int32_t x, int32_t y) {
 
 
 static inline int
-nint32_gt(int32_t x, int32_t y) {
+nint32_gt(int32_t x, int32_t y)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return 0;
     }
@@ -188,7 +200,8 @@ nint32_gt(int32_t x, int32_t y) {
 
 
 static inline int
-nint32_le(int32_t x, int32_t y) {
+nint32_le(int32_t x, int32_t y)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return 0;
     }
@@ -197,7 +210,8 @@ nint32_le(int32_t x, int32_t y) {
 
 
 static inline int
-nint32_ge(int32_t x, int32_t y) {
+nint32_ge(int32_t x, int32_t y)
+{
     if ((x == INT32_MIN) || (y == INT32_MIN)) {
         return 0;
     }
@@ -207,7 +221,8 @@ nint32_ge(int32_t x, int32_t y) {
 
 
 static inline float
-nint32_as_float(int32_t x) {
+nint32_as_float(int32_t x)
+{
     if (x == INT32_MIN) {
         return (float) NAN;
     }
@@ -215,7 +230,8 @@ nint32_as_float(int32_t x) {
 }
 
 static inline double
-nint32_as_double(int32_t x) {
+nint32_as_double(int32_t x)
+{
     if (x == INT32_MIN) {
         return (double) NAN;
     }
@@ -223,17 +239,20 @@ nint32_as_double(int32_t x) {
 }
 
 static inline int32_t
-nint32_as_int32_t(int32_t x) {
+nint32_as_int32_t(int32_t x)
+{
     return x;
 }
 
 static inline int64_t
-nint32_as_int64_t(int32_t x) {
+nint32_as_int64_t(int32_t x)
+{
     return (int64_t) x;
 }
 
 static inline int
-nint32_nonzero(int32_t x) {
+nint32_nonzero(int32_t x)
+{
     return x != 0;
 }
 
@@ -254,13 +273,15 @@ static PyTypeObject PyNInt32_Type;
 
 
 static inline int
-PyNInt32_Check(PyObject* object) {
+PyNInt32_Check(PyObject* object)
+{
     return PyObject_IsInstance(object, (PyObject*) &PyNInt32_Type);
 }
 
 
 static PyObject*
-PyNInt32_FromInt32(int32_t x) {
+PyNInt32_FromInt32(int32_t x)
+{
     PyNInt32* p = (PyNInt32*) PyNInt32_Type.tp_alloc(&PyNInt32_Type, 0);
     if (p) {
         p->value = x;
@@ -431,7 +452,8 @@ pynint32_richcompare(PyObject* a, PyObject* b, int op)
 
 
 static PyObject*
-pynint32_repr(PyObject* self) {
+pynint32_repr(PyObject* self)
+{
     int32_t value = ((PyNInt32*) self)->value;
     if (value == INT32_MIN) {
         return PyUnicode_FromString("nint32('nan')");
@@ -442,7 +464,8 @@ pynint32_repr(PyObject* self) {
 }
 
 static PyObject*
-pynint32_str(PyObject* self) {
+pynint32_str(PyObject* self)
+{
     int32_t value = ((PyNInt32*) self)->value;
     if (value == INT32_MIN) {
         return PyUnicode_FromString("nan");
@@ -454,7 +477,8 @@ pynint32_str(PyObject* self) {
 
 
 static Py_hash_t
-pynint32_hash(PyObject* self) {
+pynint32_hash(PyObject* self)
+{
     int32_t value = ((PyNInt32*) self)->value;
     // FIXME: What is a reasonable hash function?
     Py_hash_t h = 131071 * value;
@@ -469,7 +493,8 @@ pynint32_hash(PyObject* self) {
 
 
 static PyObject *
-pynint32_nb_int(PyNInt32 *o) {
+pynint32_nb_int(PyNInt32 *o)
+{
     if (o->value == INT32_MIN) {
         PyErr_SetString(PyExc_ValueError,
                         "cannot convert nint32('nan') to integer");
@@ -489,7 +514,8 @@ pynint32_nb_int(PyNInt32 *o) {
 // nint32 should be a valid index.  If that is the case, this
 // function should not be implemented.
 static PyObject *
-pynint32_nb_index(PyNInt32 *o) {
+pynint32_nb_index(PyNInt32 *o)
+{
     if (o->value == INT32_MIN) {
         PyErr_SetString(PyExc_TypeError,
                         "nint32('nan') cannot be interpreted as an integer");
@@ -502,7 +528,8 @@ pynint32_nb_index(PyNInt32 *o) {
 }
 
 static PyObject *
-pynint32_nb_float(PyNInt32 *o) {
+pynint32_nb_float(PyNInt32 *o)
+{
     PyObject *result;
     double dval;
 
@@ -513,7 +540,8 @@ pynint32_nb_float(PyNInt32 *o) {
 
 
 static PyObject *
-pynint32_nb_negative(PyNInt32 *o) {
+pynint32_nb_negative(PyNInt32 *o)
+{
     PyNInt32 *result = (PyNInt32 *) PyNInt32_Type.tp_alloc(&PyNInt32_Type, 0);
     result->value = nint32_neg(o->value);
     // XXX INCREF???
@@ -522,19 +550,22 @@ pynint32_nb_negative(PyNInt32 *o) {
 
 
 static PyObject *
-pynint32_nb_positive(PyNInt32 *o) {
+pynint32_nb_positive(PyNInt32 *o)
+{
     return (PyObject *) o;
 }
 
 
 static PyObject *
-pynint32_nb_absolute(PyNInt32 *o) {
+pynint32_nb_absolute(PyNInt32 *o)
+{
     return (PyObject *) PyNInt32_FromInt32(nint32_abs(((PyNInt32 *) o)->value));
 }
 
 
 static int
-pynint32_nb_bool(PyNInt32 *o) {
+pynint32_nb_bool(PyNInt32 *o)
+{
     return o->value != 0;
 }
 
@@ -849,7 +880,8 @@ static struct PyModuleDef moduledef = {
 // ------------------------------------------------------------------------
 
 static PyObject*
-npynint32_f_getitem(void* data, void* arr) {
+npynint32_f_getitem(void* data, void* arr)
+{
     PyObject *p = (PyObject *) PyNInt32_FromInt32(*((int32_t *) data));
     return p;
 }
@@ -858,7 +890,8 @@ npynint32_f_getitem(void* data, void* arr) {
 // XXX Share the code in the following with PyNInt32_init.
 
 static int
-npynint32_f_setitem(PyObject* item, void* data, void* arr) {
+npynint32_f_setitem(PyObject* item, void* data, void* arr)
+{
     if (PyNInt32_Check(item)) {
         *((int32_t *)data) = ((PyNInt32 *) item)->value;
         return 0;
@@ -919,7 +952,8 @@ npynint32_f_setitem(PyObject* item, void* data, void* arr) {
 
 
 static inline void
-copyswap(int32_t *dst, int32_t *src) {
+copyswap(int32_t *dst, int32_t *src)
+{
     char *from = (char *) src;
     char *to = (char *) (dst + 1);
     for (size_t i = 0; i < sizeof(int32_t); ++i) {
@@ -931,7 +965,8 @@ copyswap(int32_t *dst, int32_t *src) {
 
 
 static void
-npynint32_f_copyswap(void* dst, void* src, int swap, void* arr) {
+npynint32_f_copyswap(void* dst, void* src, int swap, void* arr)
+{
     if (!src) {
         return;
     }
@@ -947,7 +982,8 @@ npynint32_f_copyswap(void* dst, void* src, int swap, void* arr) {
 static void
 npynint32_f_copyswapn(void* dst_, npy_intp dstride,
                       void* src_, npy_intp sstride,
-                      npy_intp n, int swap, void* arr) {
+                      npy_intp n, int swap, void* arr)
+{
     char *dst = (char *) dst_;
     char *src = (char *) src_;
     if (!src) {
@@ -975,7 +1011,8 @@ npynint32_f_copyswapn(void* dst_, npy_intp dstride,
 
 
 static npy_bool
-npynint32_f_nonzero(void* data, void* arr) {
+npynint32_f_nonzero(void* data, void* arr)
+{
     return nint32_nonzero(*((int32_t *) data)) ? NPY_TRUE : NPY_FALSE;
 }
 
