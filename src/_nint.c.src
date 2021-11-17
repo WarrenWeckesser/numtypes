@@ -1016,6 +1016,36 @@ npynint32_f_nonzero(void* data, void* arr)
     return nint32_nonzero(*((int32_t *) data)) ? NPY_TRUE : NPY_FALSE;
 }
 
+/**begin repeat
+ * # op  = min, max #
+ * # cmp = <  , >   #
+ */
+static int
+npynint32_f_arg@op@(void *data, npy_intp n, npy_intp *ind, void *arr)
+{
+    int32_t extreme;
+    npy_intp iextreme;
+    int32_t *x = (int32_t *) data;
+
+    if (n < 1) {
+        // I don't know if this could ever happen, but just in case...
+        return 0;
+    }
+    extreme = x[0];
+    iextreme = 0;
+    for (npy_intp i = 1; i < n; ++i) {
+        int32_t value = x[i];
+        if (value @cmp@ extreme) {
+            extreme = value;
+            iextreme = i;
+        }
+    }
+    *ind = iextreme;
+    return 0;
+}
+/**end repeat**/
+
+
 // ------------------------------------------------------------------------
 // Functions for casting from nint32 to NumPy builtin data types.
 // These will be assigned to the appropriate slots in
@@ -1044,6 +1074,8 @@ static PyArray_ArrFuncs npynint32_arrfuncs = {
     .copyswapn  = npynint32_f_copyswapn,
     .copyswap   = npynint32_f_copyswap,
     .nonzero    = npynint32_f_nonzero,
+    .argmin     = npynint32_f_argmin,
+    .argmax     = npynint32_f_argmax,
     .cast       = {[NPY_INT32]  = npy_cast_nint32_to_int32_t,
                    [NPY_INT64]  = npy_cast_nint32_to_int64_t,
                    [NPY_FLOAT]  = npy_cast_nint32_to_float,
