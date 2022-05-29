@@ -33,7 +33,7 @@ jobs:
         echo $LOCATION
         python -m pytest $LOCATION
 
-  nightly-numpy-ubuntu:
+  numpy-main:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 2
@@ -50,7 +50,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip setuptools wheel
         python -m pip install pytest
-        python -m pip install --pre --upgrade --timeout=60 -i https://pypi.anaconda.org/scipy-wheels-nightly/simple numpy
+        pushd .
+        cd ..
+        git clone --shallow-submodules --recurse-submodules https://github.com/numpy/numpy.git
+        cd numpy
+        python -m pip install .
+        popd
     - name: Install numtypes
       run: |
         python -m pip install .
