@@ -52,8 +52,12 @@ jobs:
         python -m pip install pytest
         pushd .
         cd ..
-        git clone --shallow-submodules --recurse-submodules https://github.com/numpy/numpy.git
+        git clone --shallow-submodules --recurse-submodules --depth 1 https://github.com/numpy/numpy.git
         cd numpy
+        # We have a shallow clone of the main branch of NumPy, which has no
+        # git tags.  The code in versioneer.py requires a tag to create a
+        # version, so create a tag with a blatantly fake version number.
+        git tag -a v999.0.0 -m "NumPy main development branch"
         python -m pip install .
         popd
     - name: Install numtypes
