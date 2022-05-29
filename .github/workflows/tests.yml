@@ -57,6 +57,8 @@ jobs:
         # We have a shallow clone of the main branch of NumPy, which has no
         # git tags.  The code in versioneer.py requires a tag to create a
         # version, so create a tag with a blatantly fake version number.
+        git config user.email "foo@example.com"
+        git config user.name "Foo"
         git tag -a v999.0.0 -m "NumPy main development branch"
         python -m pip install .
         popd
