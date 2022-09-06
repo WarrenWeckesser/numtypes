@@ -14,8 +14,6 @@ The following data types are defined in this library:
 * `polarcomplex64` and `polarcomplex128` are complex numbers represented
   in polar coordinates.  (The Python objects and NumPy data types have been
   created, but the NumPy ufuncs are not implemented yet.)
-* `complex_int8`, `complex_int16`, `complex_int32` and `complex_int64` are
-  complex numbers with integer real and imaginary parts.
 * `logfloat` is a Python type that represents nonnegative floating point
   numbers.  The type works with the logarithm of the numbers internally,
   so it can do elementary arithmetic with values such as exp(-1200).
@@ -168,47 +166,6 @@ types.
     array([polarcomplex64((2.236068, 1.1071488)),
            polarcomplex64((5, 0.92729521)), polarcomplex64((5, -1.5707964))],
           dtype=polarcomplex64)
-
-
-### Complex integers
-
-Some examples of using the the complex integer data types:
-
-    >>> from numtypes import complex_int8, complex_int32
-
-    >>> z8 = np.array([complex_int8(1+2j), complex_int8(3-4j), complex_int8(5+12j)])
-    >>> z8
-    array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
-
-    >>> abs(z8)
-    array([ 2.23606798,  5.        , 13.        ])
-
-    >>> z8.conj()
-    array([(1-2j), (3+4j), (5-12j)], dtype='complex_int8')
-
-    >>> z8 * z8.conj()
-    array([(5+0j), (25+0j), (-87+0j)], dtype='complex_int8')  # Note the overflow!
-
-    >>> z8 + 100
-    array([(101+2j), (103-4j), (105+12j)], dtype='complex_int8')
-
-    >>> 3*z8
-    array([(3+6j), (9-12j), (15+36j)], dtype='complex_int8')
-
-    >>> z32 = np.array([complex_int32(1j), complex_int32(8+0j), complex_int32(12+5j)])
-    >>> z32
-    array([(0+1j), (8+0j), (12+5j)], dtype='complex_int32')
-
-    >>> z8 + z32
-    array([(1+3j), (11-4j), (17+17j)], dtype='complex_int32')
-
-**Note**:  Currently, the `.real` and `.imag` properties of the `complex_int`
-data types do not work correctly!
-
-    >>> z8.real
-    array([(1+2j), (3-4j), (5+12j)], dtype='complex_int8')
-    >>> z8.imag
-    array([(0+0j), (0+0j), (0+0j)], dtype='complex_int8')
 
 
 ### `logfloat`
