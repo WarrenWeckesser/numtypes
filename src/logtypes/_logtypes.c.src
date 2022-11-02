@@ -1350,7 +1350,11 @@ PyInit__logtypes(void)
         goto fail;
     }
 
+#if PY_VERSION_HEX < 0x030B00F0
     Py_TYPE(&logfloat@nbits@_descr) = &PyArrayDescr_Type;
+#else
+    Py_SET_TYPE(&logfloat@nbits@_descr, &PyArrayDescr_Type);
+#endif
 
     // Get a type number for the new dtype.
     int npy_logfloat@nbits@ = PyArray_RegisterDataType(&logfloat@nbits@_descr);

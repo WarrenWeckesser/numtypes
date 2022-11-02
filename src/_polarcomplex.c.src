@@ -937,7 +937,11 @@ PyInit__polarcomplex(void) {
     // Set up the NumPy dtype
     // ----------------------------------------------------------------
 
+#if PY_VERSION_HEX < 0x030B00F0
     Py_TYPE(&NpyPolarComplex@nbits@_descr) = &PyArrayDescr_Type;
+#else
+    Py_SET_TYPE(&NpyPolarComplex@nbits@_descr, &PyArrayDescr_Type);
+#endif
     int npy_polarcomplex@nbits@ = PyArray_RegisterDataType(&NpyPolarComplex@nbits@_descr);
     if (npy_polarcomplex@nbits@ < 0) {
         goto cleanup;

@@ -1339,7 +1339,11 @@ PyInit__nint(void) {
     // Set up the NumPy dtype
     // ----------------------------------------------------------------
 
+#if PY_VERSION_HEX < 0x030B00F0
     Py_TYPE(&npynint32_descr) = &PyArrayDescr_Type;
+#else
+    Py_SET_TYPE(&npynint32_descr, &PyArrayDescr_Type);
+#endif
     npy_nint32 = PyArray_RegisterDataType(&npynint32_descr);
     if (npy_nint32 < 0) {
         return NULL;
