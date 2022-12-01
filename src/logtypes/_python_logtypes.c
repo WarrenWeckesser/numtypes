@@ -1,12 +1,12 @@
 //
-//  Create the Python types logfloat and logcomplex.
+//  Create the Python type logfloat.
 //
-//  These types represent float and complex values, but
-//  internally the log of the value is stored.
+//  logfloat represents floating point values, but internally the log of
+//  the value is stored.
 //
-//  Note that "logfloat" uses "float" in the same sense
-//  as Python (and not as in C).  The underlying values
-//  use 64 bit floating point.
+//  Note that "logfloat" uses "float" in the same sense as Python (and
+//  not as in C).  The underlying values use 64 bit floating point (the
+//  C type `double`).
 //
 //  Requires C99.
 //
@@ -15,7 +15,6 @@
 #include <Python.h>
 #include <structmember.h>
 
-//#include <complex.h>
 #include <math.h>
 
 //
