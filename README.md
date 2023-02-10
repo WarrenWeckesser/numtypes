@@ -213,6 +213,8 @@ Related work and links
 ----------------------
 
 * [quaternion](https://github.com/moble/quaternion)
+* [numpy-user-dtypes](https://github.com/numpy/numpy-user-dtypes):
+  Repository for example user DTypes using the new API.
 * [numpy-dtypes](https://github.com/numpy/numpy-dtypes)
   - Includes rational and quaternion, but not actively maintained.
     See moble's github repo for a maintained version of quaternions.
