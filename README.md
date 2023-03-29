@@ -223,7 +223,7 @@ Related work and links
   - The steps in examples/quad_dtype show how to add a dtype for the
     quad precision floating point type provided by gcc.
 * NumPy:
-      https://github.com/numpy/numpy/blob/master/numpy/core/src/umath/_rational_tests.c.src
+      https://github.com/numpy/numpy/blob/main/numpy/core/src/umath/_rational_tests.c
   - This implements a rational dtype as a unit test.
 * NumPy documentation of [user-defined data types](https://numpy.org/doc/1.17/user/c-info.beyond-basics.html#user-defined-data-types)
 * [ora](https://github.com/alexhsamuel/ora) implements time and datetime data types.
