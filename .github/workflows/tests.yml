@@ -24,19 +24,14 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip wheel
-        python -m pip install --upgrade setuptools==59.8.0
-        python -m pip install pytest
+        python -m pip install meson-python pytest toml
         python -m pip install numpy==${{ matrix.numpy-version }}
     - name: Install numtypes
       run: |
         python -m pip install .
     - name: Test with pytest
       run: |
-        cd ../..
-        pwd
-        export LOCATION=`python -c "import numtypes, os; print(os.path.dirname(numtypes.__file__))"`
-        echo $LOCATION
-        python -m pytest $LOCATION
+        pytest --pyargs numtypes
 
   numpy-main:
     runs-on: ubuntu-latest
@@ -55,7 +50,7 @@ jobs:
         sudo apt-get install libopenblas-dev
         python -m pip install --upgrade pip wheel
         python -m pip install --upgrade setuptools==59.8.0
-        python -m pip install pytest
+        python -m pip install meson-python pytest toml
         pushd .
         cd ..
         git clone --shallow-submodules --recurse-submodules --depth 1 https://github.com/numpy/numpy.git
@@ -73,8 +68,4 @@ jobs:
         python -m pip install .
     - name: Test with pytest
       run: |
-        cd ../..
-        pwd
-        export LOCATION=`python -c "import numtypes, os; print(os.path.dirname(numtypes.__file__))"`
-        echo $LOCATION
-        python -m pytest $LOCATION
+        pytest --pyargs numtypes

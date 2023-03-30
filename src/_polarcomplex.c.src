@@ -14,6 +14,8 @@
 #define NPY_NO_DEPRECATED_API NPY_API_VERSION
 #include <numpy/arrayobject.h>
 
+#include "npy_2_complexcompat.h"
+
 #define DOC64  "single precision complex number stored in polar coordinates"
 #define DOC128 "double precision complex number stored in polar coordinates"
 
@@ -54,14 +56,6 @@ typedef struct _polarcomplex@nbits@ {
 // Functions for working with polar complex C structures.
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-static @ctype@ complex
-polarcomplex@nbits@_to_complex(const polarcomplex@nbits@ z)
-{
-    @ctype@ complex w = z.r*@cosfunc@(z.theta) + z.r*@sinfunc@(z.theta)*I;
-    return w;
-}
-
-
 static polarcomplex@nbits@
 double_xy_to_polarcomplex@nbits@(const double x, const double y)
 {
@@ -101,17 +95,20 @@ static polarcomplex@nbits@
 polarcomplex@nbits@_add(const polarcomplex@nbits@ z1,
                         const polarcomplex@nbits@ z2)
 {
-    @ctype@ complex w1, w2;
     polarcomplex@nbits@ w;
+    @ctype@ w1re, w1im, w2re, w2im;
 
-    w1 = polarcomplex@nbits@_to_complex(z1);
-    w2 = polarcomplex@nbits@_to_complex(z2);
     double m = fmax(fabs(z1.r), fabs(z2.r));
     double r1m = z1.r / m;
     double r2m = z2.r / m;
     w.r = m * @sqrtfunc@(r1m*r1m + r2m*r2m + 2*r1m*r2m*@cosfunc@(z1.theta - z2.theta));
-    w.theta = @atan2func@(@cimagfunc@(w1) + @cimagfunc@(w2),
-                          @crealfunc@(w1) + @crealfunc@(w2));
+
+    w1re = z1.r*@cosfunc@(z1.theta);
+    w1im = z1.r*@sinfunc@(z1.theta);
+    w2re = z2.r*@cosfunc@(z2.theta);
+    w2im = z2.r*@sinfunc@(z2.theta);
+    w.theta = @atan2func@(w1im + w2im, w1re + w2re);
+
     return w;
 }
 
@@ -119,17 +116,20 @@ static polarcomplex@nbits@
 polarcomplex@nbits@_subtract(const polarcomplex@nbits@ z1,
                              const polarcomplex@nbits@ z2)
 {
-    @ctype@ complex w1, w2;
     polarcomplex@nbits@ w;
+    @ctype@ w1re, w1im, w2re, w2im;
 
-    w1 = polarcomplex@nbits@_to_complex(z1);
-    w2 = polarcomplex@nbits@_to_complex(z2);
     double m = fmax(fabs(z1.r), fabs(z2.r));
     double r1m = z1.r / m;
     double r2m = z2.r / m;
     w.r = m * @sqrtfunc@(r1m*r1m + r2m*r2m - 2*r1m*r2m*@cosfunc@(z1.theta - z2.theta));
-    w.theta = @atan2func@(@cimagfunc@(w1) - @cimagfunc@(w2),
-                          @crealfunc@(w1) - @crealfunc@(w2));
+
+    w1re = z1.r*@cosfunc@(z1.theta);
+    w1im = z1.r*@sinfunc@(z1.theta);
+    w2re = z2.r*@cosfunc@(z2.theta);
+    w2im = z2.r*@sinfunc@(z2.theta);
+    w.theta = @atan2func@(w1im - w2im, w1re - w2re);
+
     return w;
 }
 
@@ -150,12 +150,13 @@ polarcomplex@nbits@_negate(const polarcomplex@nbits@ z)
 
 /**end repeat**/
 
-// Only the double precision version of this conversion
-// function is used.
+//
+// Only the double precision version of this conversion function is used.
+//
 static polarcomplex128
-double_complex_to_polarcomplex128(const double complex z)
+Py_complex_to_polarcomplex128(const Py_complex z)
 {
-    return double_xy_to_polarcomplex128(creal(z), cimag(z));
+    return double_xy_to_polarcomplex128(z.real, z.imag);
 }
 
 
@@ -189,24 +190,24 @@ static PyTypeObject PyPolarComplex@nbits@_Type;
 
 
 
-static double complex
-to_double_complex(PyObject *obj)
+static Py_complex
+to_Py_complex(PyObject *obj)
 {
-    double complex z;
+    Py_complex z;
 
     if (Py_TYPE(obj) == &PyPolarComplex64_Type) {
         polarcomplex64 value = ((PyPolarComplex64 *) obj)->value;
-        z = (double) value.r * cos((double) value.theta) +
-            I*((double) value.r * sin((double) value.theta));
+        z.real = (double) value.r * cos((double) value.theta);
+        z.imag = (double) value.r * sin((double) value.theta);
     }
     else if (Py_TYPE(obj) == &PyPolarComplex128_Type) {
         polarcomplex128 value = ((PyPolarComplex128 *) obj)->value;
-        z = value.r * cos(value.theta) + I*(value.r * sin(value.theta));
+        z.real = value.r * cos(value.theta);
+        z.imag = value.r * sin(value.theta);
     }
     else {
         // Try to convert obj to a complex number.
-        Py_complex pyz = PyComplex_AsCComplex(obj);
-        z = pyz.real + I*pyz.imag;
+        z = PyComplex_AsCComplex(obj);
     }
     return z;
 }
@@ -407,15 +408,15 @@ PyPolarComplex@nbits@_richcompare(PyObject* a, PyObject* b, int op)
             return PyBool_FromLong(result);    
         }
     }
-    double complex z1 = to_double_complex(a);
-    if ((creal(z1) == -1.0) && PyErr_Occurred()) {
+    Py_complex z1 = to_Py_complex(a);
+    if ((z1.real == -1.0) && PyErr_Occurred()) {
         return NULL;
     }
-    double complex z2 = to_double_complex(b);
-    if ((creal(z2) == -1.0) && PyErr_Occurred()) {
+    Py_complex z2 = to_Py_complex(b);
+    if ((z2.real == -1.0) && PyErr_Occurred()) {
         return NULL;
     }
-    int result = z1 == z2;
+    int result = (z1.real == z2.real) && (z1.imag == z2.imag);
     if (op == Py_NE) {
         result = !result;
     }
@@ -458,20 +459,20 @@ PyPolarComplex_nb_add(PyObject *o1, PyObject *o2)
                                                     ((PyPolarComplex128 *) o2)->value);
         return (PyObject *) PyPolarComplex128_from_polarcomplex128(value);
     }
-    double complex z1 = to_double_complex(o1);
-    if ((creal(z1) == -1.0) && (PyErr_Occurred())) {
+    Py_complex z1 = to_Py_complex(o1);
+    if ((z1.real == -1.0) && (PyErr_Occurred())) {
         Py_INCREF(Py_NotImplemented);
         return Py_NotImplemented;
     }
-    double complex z2 = to_double_complex(o2);
-    if ((creal(z2) == -1.0) && (PyErr_Occurred())) {
+    Py_complex z2 = to_Py_complex(o2);
+    if ((z2.real == -1.0) && (PyErr_Occurred())) {
         Py_INCREF(Py_NotImplemented);
         return Py_NotImplemented;
     }
 
-    double complex w = z1 + z2;
+    Py_complex w = _Py_c_sum(z1, z2);
 
-    polarcomplex128 value = double_complex_to_polarcomplex128(w);
+    polarcomplex128 value = Py_complex_to_polarcomplex128(w);
     return (PyObject *) PyPolarComplex128_from_polarcomplex128(value);
 }
 
@@ -491,20 +492,20 @@ PyPolarComplex_nb_subtract(PyObject *o1, PyObject *o2)
                                                          ((PyPolarComplex128 *) o2)->value);
         return (PyObject *) PyPolarComplex128_from_polarcomplex128(value);
     }
-    double complex z1 = to_double_complex(o1);
-    if ((creal(z1) == -1.0) && (PyErr_Occurred())) {
+    Py_complex z1 = to_Py_complex(o1);
+    if ((z1.real == -1.0) && (PyErr_Occurred())) {
         Py_INCREF(Py_NotImplemented);
         return Py_NotImplemented;
     }
-    double complex z2 = to_double_complex(o2);
-    if ((creal(z2) == -1.0) && (PyErr_Occurred())) {
+    Py_complex z2 = to_Py_complex(o2);
+    if ((z2.real == -1.0) && (PyErr_Occurred())) {
         Py_INCREF(Py_NotImplemented);
         return Py_NotImplemented;
     }
 
-    double complex w = z1 - z2;
+    Py_complex w = _Py_c_diff(z1, z2);
 
-    polarcomplex128 value = double_complex_to_polarcomplex128(w);
+    polarcomplex128 value = Py_complex_to_polarcomplex128(w);
     return (PyObject *) PyPolarComplex128_from_polarcomplex128(value);
 }
 
@@ -575,6 +576,7 @@ PyPolarComplex_nb_true_divide(PyObject *o1, PyObject *o2)
 /**begin repeat
  *
  * #nbits = 64, 128#
+ * #capchar = F, #
  * #ctype = float, double#
  * #fmaxfunc = fmaxf, fmax#
  * #fabsfunc = fabsf, fabs#
@@ -777,11 +779,11 @@ NpyPolarComplex@nbits@_f_nonzero(void* data, void* arr) {
     static type                                                 \
     polarcomplex@nbits@_as_##type(polarcomplex@nbits@ value)    \
     {                                                           \
-        @ctype@ complex w;                                      \
         type z;                                                 \
-        w = polarcomplex@nbits@_to_complex(value);              \
-        z.real = @crealfunc@(w);                                \
-        z.imag = @cimagfunc@(w);                                \
+        @ctype@ re = value.r*@cosfunc@(value.theta);            \
+        @ctype@ im = value.r*@sinfunc@(value.theta);            \
+        NPY_CSETREAL@capchar@(&z, re);                          \
+        NPY_CSETIMAG@capchar@(&z, im);                          \
         return z;                                               \
     }
 
@@ -846,11 +848,11 @@ PyArray_Descr NpyPolarComplex@nbits@_descr = {
 /**begin repeat1
  *
  * #fromctyp = float, double, long double, int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t#
- * #fromityp = float, double, long_double, int8,   int16,   int32,   int64,   uint8,   uint16,   uint32,   uint64#
+ * #fromname = float, double, long_double, int8,   int16,   int32,   int64,   uint8,   uint16,   uint32,   uint64#
  */
 
 static void
-cast_npy_@fromityp@_to_polarcomplex@nbits@(void* from, void* to, npy_intp n,
+cast_npy_@fromname@_to_polarcomplex@nbits@(void* from, void* to, npy_intp n,
                                            void* fromarr, void* toarr)
 {
     for (npy_intp i = 0; i < n; ++i) {
@@ -866,8 +868,6 @@ cast_npy_@fromityp@_to_polarcomplex@nbits@(void* from, void* to, npy_intp n,
  *
  * #fromctyp = float, double#
  * #fromityp = cfloat, cdouble#
- * #crealfunc = crealf, creal#
- * #cimagfunc = cimagf, cimag#
  */
 
 static void
@@ -875,9 +875,10 @@ cast_npy_@fromityp@_to_polarcomplex@nbits@(void* from, void* to, npy_intp n,
                                            void* fromarr, void* toarr)
 {
     for (npy_intp i = 0; i < n; ++i) {
-        @fromctyp@ complex from_value = ((@fromctyp@ complex *) from)[i];
-        ((polarcomplex@nbits@ *) to)[i] = double_xy_to_polarcomplex@nbits@((double) @crealfunc@(from_value),
-                                                                           (double) @cimagfunc@(from_value));
+        @fromctyp@ re = ((@fromctyp@ *) from)[2*i];
+        @fromctyp@ im = ((@fromctyp@ *) from)[2*i + 1];
+        ((polarcomplex@nbits@ *) to)[i] = double_xy_to_polarcomplex@nbits@((double) re,
+                                                                           (double) im);
     }
 }
 

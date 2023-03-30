@@ -1,0 +1,20 @@
+[build-system]
+requires = [
+    "meson>=0.64.0",
+    "meson-python>=0.14.0",
+    "wheel",
+    "numpy",
+]
+build-backend = "mesonpy"
+
+[project]
+name = "numtypes"
+description = "Custom data types for NumPy"
+version = "0.0.4dev1"
+readme = 'README.md'
+author = "Warren Weckesser"
+requires-python = ">=3.9.0"
+dependencies = [
+    "numpy",
+    "pytest"
+]
