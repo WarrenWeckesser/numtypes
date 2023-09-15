@@ -3,6 +3,7 @@ requires = [
     "meson>=0.64.0",
     "meson-python>=0.14.0",
     "wheel",
+    'toml',
     "numpy",
 ]
 build-backend = "mesonpy"
