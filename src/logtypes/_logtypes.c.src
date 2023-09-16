@@ -826,7 +826,11 @@ cast_@nptype@_to_logfloat@nbits@(void *from, void *to, npy_intp n,
 {
     for (npy_intp i = 0; i < n; i++) {
         @npctype@ val = ((@npctype@ *) from)[i];
-        ((@ctype@ *) to)[i] = (@ctype@) log((double) val);
+        // Declare dval volatile to avoid an apparent bug in clang that
+        // leaves the floating point status set as if log(dval) had been
+        // computed even though val is 0.
+        volatile double dval = (double) val;
+        ((@ctype@ *) to)[i] = (val == 0) ? (@ctype@) -INFINITY : (@ctype@) log(dval);
     }
 }
 
