@@ -777,8 +777,8 @@ logfloat@nbits@_f_arg@op@(void *data, npy_intp n, npy_intp *ind, void *arr)
 //
 
 /**begin repeat1
- * #nptype  = int8,   uint8,   int16,   uint16,   int32,   uint32,   int64,   uint64,   float, double, cfloat,        cdouble        #
- * #npctype = int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double, complex float, complex double #
+ * #nptype  = int8,   uint8,   int16,   uint16,   int32,   uint32,   int64,   uint64,   float, double  #
+ * #npctype = int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t, float, double  #
  */
 
 static void
@@ -788,6 +788,29 @@ cast_logfloat@nbits@_to_@nptype@(void *from, void *to, npy_intp n,
     for (npy_intp i = 0; i < n; i++) {
         double logval = (double) ((@ctype@ *) from)[i];
         ((@npctype@ *) to)[i] = (@npctype@) exp(logval);
+    }
+}
+
+/**end repeat1**/
+
+/**begin repeat1
+ * #nptype      = cfloat,        cdouble        #
+ * #npctype     = complex float, complex double #
+ * #msvc_ctype  = _Fcomplex,     _Dcomplex      #
+ * #msvc_cbuild = _FCbuild,      _Cbuild        #
+ */
+
+static void
+cast_logfloat@nbits@_to_@nptype@(void *from, void *to, npy_intp n,
+                                 void *fromarr, void *toarr)
+{
+    for (npy_intp i = 0; i < n; i++) {
+        double logval = (double) ((@ctype@ *) from)[i];
+#ifdef _MSC_VER
+        ((@msvc_ctype@ *) to)[i] = @msvc_cbuild@(exp(logval), 0.0);
+#else
+        ((@npctype@ *) to)[i] = (@npctype@) exp(logval);
+#endif
     }
 }
 
