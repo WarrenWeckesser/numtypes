@@ -59,7 +59,7 @@ jobs:
         sudo apt-get install libopenblas-dev
         python -m pip install --upgrade pip wheel
         python -m pip install --upgrade setuptools==59.8.0
-        python -m pip install meson-python pytest toml
+        python -m pip install ninja meson-python pytest toml
         pushd .
         cd ..
         git clone --shallow-submodules --recurse-submodules --depth 1 https://github.com/numpy/numpy.git
