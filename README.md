@@ -218,6 +218,8 @@ Related work and links
 * [numpy-dtypes](https://github.com/numpy/numpy-dtypes)
   - Includes rational and quaternion, but not actively maintained.
     See moble's github repo for a maintained version of quaternions.
+* Jax [ml_dtypes](https://github.com/jax-ml/ml_dtypes): Several NumPy dtype
+  extensions used in machine learning.
 * Stéfan van der Walt's class notes from the 2013 "Dive Into NumPy" class,
       https://github.com/stefanv/teaching/tree/master/2013_scipy_austin_dive_into_numpy
   - The steps in examples/quad_dtype show how to add a dtype for the
