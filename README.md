@@ -3,6 +3,8 @@ numtypes
 
 Custom data types for NumPy.
 
+*Note:* This library has not been updated to work with NumPy 2.0.
+
 The following data types are defined in this library:
 
 * `logfloat32` and `logfloat64` are nonnegative floating point values
